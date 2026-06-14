@@ -33,6 +33,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
+    console.log(`Error Occured During Login : ${err}`)
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -68,6 +69,7 @@ export const createUser = async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
+    console.log(`Error Occured During Create User : ${err}`)
     res.status(500).json({ message: "Server error" });
   }
 };
