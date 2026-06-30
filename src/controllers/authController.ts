@@ -42,16 +42,13 @@ export const createUser = async (req: Request, res: Response) => {
   try {
     const { name, phone, password, role } = req.body;
 
-    // 1. check if user already exists
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // 2. hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. create user
     const user = await User.create({
       name,
       phone,
