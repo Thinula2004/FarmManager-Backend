@@ -2,6 +2,12 @@ import express from "express";
 import cors from "cors";
 
 import authRoutes from "./routes/authRoutes";
+import farmRoutes from "./routes/farmRoutes";
+import animalRoutes from "./routes/animalRoutes";
+import batchRoutes from "./routes/batchRoutes";
+import feedRoutes from "./routes/feedRoutes";
+import visitRoutes from "./routes/visitRoutes";
+import userRoutes from "./routes/userRoutes";
 
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
@@ -28,5 +34,11 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/farms", farmRoutes);
+app.use("/api/animal", animalRoutes);
+app.use("/api/batch", batchRoutes);
+app.use("/api/feed", feedRoutes);
+app.use("/api/visit", visitRoutes);
 
 export default app;

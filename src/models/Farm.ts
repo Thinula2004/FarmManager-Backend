@@ -4,12 +4,10 @@ export interface IFarm extends mongoose.Document {
   name: string;
   city: string;
   address: string;
-  activeChicks: number;
-  mortalityToday: number;
-  avgWeight: number;
-  lastVisit: string;
-  healthStatus: "Good" | "Fair" | "Poor";
-  batchAge: number;
+  customer: string;
+  tel: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const farmSchema = new mongoose.Schema<IFarm>(
@@ -26,29 +24,12 @@ const farmSchema = new mongoose.Schema<IFarm>(
       type: String,
       required: true,
     },
-    activeChicks: {
-      type: Number,
-      required: true,
-    },
-    mortalityToday: {
-      type: Number,
-      required: true,
-    },
-    avgWeight: {
-      type: Number,
-      required: true,
-    },
-    lastVisit: {
+    customer: {
       type: String,
       required: true,
     },
-    healthStatus: {
+    tel: {
       type: String,
-      enum: ["Good", "Fair", "Poor"],
-      required: true,
-    },
-    batchAge: {
-      type: Number,
       required: true,
     },
   },
