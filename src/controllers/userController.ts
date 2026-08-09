@@ -168,36 +168,53 @@ export const getOfficers = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
-
   try {
-
     const officers = await User.find({
       role: "officer",
     })
-      .select(
-        "-password -tokenVersion"
-      )
+      .select("-tokenVersion")
       .sort({
         createdAt: -1,
-      });
+      })
+      .lean();
 
+    const officerIds = officers.map((officer) => officer._id);
 
-    return res.status(200).json({
-      message:
-        "Officers retrieved successfully",
-      officers,
+    const officerFarms = await OfficerFarm.find({
+      officer: { $in: officerIds },
+    })
+      .populate("farm")
+      .lean();
+
+    const officersWithFarms = officers.map((officer) => {
+      const farms = officerFarms
+        .filter(
+          (officerFarm) =>
+            officerFarm.officer.toString() ===
+            officer._id.toString()
+        )
+        .map((officerFarm) => officerFarm.farm);
+
+      return {
+        id: officer._id,
+        name: officer.name,
+        phone: officer.phone,
+        password: officer.password,
+        farms,
+      };
     });
 
-
-  } catch(err){
-
+    return res.status(200).json({
+      message: "Officers retrieved successfully",
+      officers: officersWithFarms,
+    });
+  } catch (err) {
     console.log(
       `Error Occured During Get Officers : ${err}`
     );
 
-
     return res.status(500).json({
-      message:"Server error",
+      message: "Server error",
     });
   }
 };
