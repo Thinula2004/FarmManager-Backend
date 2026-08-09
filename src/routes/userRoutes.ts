@@ -4,6 +4,7 @@ import {
   addUser,
   deleteUser,
   getOfficers,
+  updateUser,
 } from "../controllers/userController";
 
 import { authenticate } from "../services/Authenticator";
@@ -19,6 +20,13 @@ router.post(
   authenticate,
   authorize("owner"),
   addUser
+);
+
+router.put(
+  "/:id",
+  authenticate,
+  authorize("owner"),
+  updateUser
 );
 
 router.delete(

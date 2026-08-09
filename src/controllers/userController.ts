@@ -103,6 +103,113 @@ export const addUser = async (
   }
 };
 
+export const updateUser = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      name,
+      phone,
+      password,
+      farmIds,
+    } = req.body;
+
+    if (
+      !name ||
+      !phone ||
+      !Array.isArray(farmIds) ||
+      farmIds.length === 0
+    ) {
+      return res.status(400).json({
+        message:
+          "Name, phone and at least one farmId are required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (user.role === "owner") {
+      return res.status(403).json({
+        message: "Owner cannot be updated",
+      });
+    }
+
+    const uniqueFarmIds = [...new Set(farmIds)];
+
+    const farms = await Farm.find({
+      _id: { $in: uniqueFarmIds },
+    });
+
+    if (farms.length !== uniqueFarmIds.length) {
+      return res.status(404).json({
+        message: "One or more farms not found",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      phone,
+      _id: { $ne: id },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "Phone number already exists",
+      });
+    }
+
+    user.name = name;
+    user.phone = phone;
+
+    if (password) {
+      user.password = await bcrypt.hash(
+        password,
+        10
+      );
+    }
+
+    await user.save();
+
+    await OfficerFarm.deleteMany({
+      officer: id,
+    });
+
+    await OfficerFarm.insertMany(
+      uniqueFarmIds.map((farmId) => ({
+        officer: user._id,
+        farm: farmId,
+      }))
+    );
+
+    return res.status(200).json({
+      message: "Officer updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+      },
+      farms: uniqueFarmIds,
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Update User : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
 
 
 // Delete officer
