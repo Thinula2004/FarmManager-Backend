@@ -19,38 +19,41 @@ export const addUser = async (
       name,
       phone,
       password,
-      farmId,
+      farmIds,
     } = req.body;
 
-
+    // Validate required fields
     if (
       !name ||
       !phone ||
       !password ||
-      !farmId
+      !Array.isArray(farmIds) ||
+      farmIds.length === 0
     ) {
       return res.status(400).json({
         message:
-          "Name, phone, password and farmId are required",
+          "Name, phone, password and at least one farmId are required",
       });
     }
 
+    // Remove duplicate farm IDs
+    const uniqueFarmIds = [...new Set(farmIds)];
 
-    // Check farm
-    const farm = await Farm.findById(farmId);
+    // Check all farms
+    const farms = await Farm.find({
+      _id: { $in: uniqueFarmIds },
+    });
 
-    if (!farm) {
+    if (farms.length !== uniqueFarmIds.length) {
       return res.status(404).json({
-        message: "Farm not found",
+        message: "One or more farms not found",
       });
     }
-
 
     // Check existing user
     const existingUser = await User.findOne({
       phone,
     });
-
 
     if (existingUser) {
       return res.status(400).json({
@@ -58,12 +61,10 @@ export const addUser = async (
       });
     }
 
-
     const hashedPassword = await bcrypt.hash(
       password,
       10
     );
-
 
     // Create officer
     const user = await User.create({
@@ -73,13 +74,13 @@ export const addUser = async (
       role: "officer",
     });
 
-
-    // Create officer farm relationship
-    await OfficerFarm.create({
-      officer: user._id,
-      farm: farmId,
-    });
-
+    // Create officer-farm relationships
+    await OfficerFarm.insertMany(
+      uniqueFarmIds.map((farmId) => ({
+        officer: user._id,
+        farm: farmId,
+      }))
+    );
 
     return res.status(201).json({
       message: "Officer created successfully",
@@ -89,11 +90,9 @@ export const addUser = async (
         phone: user.phone,
         role: user.role,
       },
+      farms: uniqueFarmIds,
     });
-
-
   } catch (err) {
-
     console.log(
       `Error Occured During Add User : ${err}`
     );
