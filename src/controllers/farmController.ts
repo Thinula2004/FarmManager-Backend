@@ -184,9 +184,6 @@ export const getDashboardStats = async (
     // Total farms
     const farmCount = await Farm.countDocuments();
 
-    // Total batches
-    const batchCount = await Batch.countDocuments();
-
     // Total officers
     const officerCount = await User.countDocuments({
       role: "officer",
@@ -240,8 +237,8 @@ export const getDashboardStats = async (
       message: "Dashboard statistics retrieved successfully",
       stats: {
         liveChicks,
+        totalMortality,
         farmCount,
-        batchCount,
         officerCount,
       },
     });
