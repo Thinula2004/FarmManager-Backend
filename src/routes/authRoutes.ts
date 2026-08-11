@@ -1,6 +1,7 @@
 import express from "express";
-import { createUser, getCurrentUser, login } from "../controllers/authController";
+import { changePassword, createUser, getCurrentUser, login } from "../controllers/authController";
 import { authenticate } from "../services/Authenticator";
+import { authorize } from "../services/Authorize";
 
 
 const router = express.Router();
@@ -12,5 +13,6 @@ router.get(
   authenticate,
   getCurrentUser
 );
+router.put("/change-password", authenticate, authorize("owner"), changePassword);
 
 export default router;

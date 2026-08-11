@@ -137,3 +137,54 @@ export const getCurrentUser = async (
     });
   }
 };
+
+export const changePassword = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || !password.trim()) {
+      return res.status(400).json({
+        message: "Password is required",
+      });
+    }
+
+    const user = await User.findById(req.user?.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    user.password = hashedPassword;
+
+    user.tokenVersion += 1;
+
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+        role: user.role,
+        tokenVersion: user.tokenVersion,
+      },
+      process.env.JWT_SECRET as string
+    );
+
+    return res.status(200).json({
+      message: "Password changed successfully",
+      token,
+    });
+  } catch (err) {
+    console.log(`Error Occured During Change Password : ${err}`);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};

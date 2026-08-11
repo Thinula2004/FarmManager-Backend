@@ -22,7 +22,6 @@ export const addUser = async (
       farmIds,
     } = req.body;
 
-    // Validate required fields
     if (
       !name ||
       !phone ||
@@ -36,10 +35,8 @@ export const addUser = async (
       });
     }
 
-    // Remove duplicate farm IDs
     const uniqueFarmIds = [...new Set(farmIds)];
 
-    // Check all farms
     const farms = await Farm.find({
       _id: { $in: uniqueFarmIds },
     });
@@ -50,7 +47,6 @@ export const addUser = async (
       });
     }
 
-    // Check existing user
     const existingUser = await User.findOne({
       phone,
     });
@@ -66,7 +62,6 @@ export const addUser = async (
       10
     );
 
-    // Create officer
     const user = await User.create({
       name,
       phone,
@@ -74,7 +69,6 @@ export const addUser = async (
       role: "officer",
     });
 
-    // Create officer-farm relationships
     await OfficerFarm.insertMany(
       uniqueFarmIds.map((farmId) => ({
         officer: user._id,
@@ -325,6 +319,4 @@ export const getOfficers = async (
     });
   }
 };
-
-
 
