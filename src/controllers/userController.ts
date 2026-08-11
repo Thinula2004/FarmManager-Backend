@@ -164,11 +164,10 @@ export const updateUser = async (
     user.phone = phone;
 
     if (password) {
-      user.password = await bcrypt.hash(
-        password,
-        10
-      );
+      user.password = await bcrypt.hash(password, 10);
     }
+
+    user.tokenVersion += 1;
 
     await user.save();
 
