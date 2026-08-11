@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import Farm from "../models/Farm";
+import Batch from "../models/Batch";
+import Visit from "../models/Visit";
+import User from "../models/User";
 
 export const addFarm = async (req: Request, res: Response) => {
   try {
@@ -166,6 +169,86 @@ export const deleteFarm = async (
     });
   } catch (err) {
     console.log(`Error Occured During Delete Farm : ${err}`);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+export const getDashboardStats = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    // Total farms
+    const farmCount = await Farm.countDocuments();
+
+    // Total batches
+    const batchCount = await Batch.countDocuments();
+
+    // Total officers
+    const officerCount = await User.countDocuments({
+      role: "officer",
+    });
+
+    // Get all ongoing batches
+    const ongoingBatches = await Batch.find({
+      status: "ONGOING",
+    }).select("_id initialCount");
+
+    // Total initial chicks in ongoing batches
+    const totalInitialChicks = ongoingBatches.reduce(
+      (total, batch) => total + batch.initialCount,
+      0
+    );
+
+    // IDs of ongoing batches
+    const ongoingBatchIds = ongoingBatches.map(
+      (batch) => batch._id
+    );
+
+    // Get total mortality from visits belonging to ongoing batches
+    const mortalityResult = await Visit.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: ongoingBatchIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalMortality: {
+            $sum: "$mortality",
+          },
+        },
+      },
+    ]);
+
+    const totalMortality =
+      mortalityResult.length > 0
+        ? mortalityResult[0].totalMortality
+        : 0;
+
+    // Calculate live chicks
+    const liveChicks =
+      totalInitialChicks - totalMortality;
+
+    return res.status(200).json({
+      message: "Dashboard statistics retrieved successfully",
+      stats: {
+        liveChicks,
+        farmCount,
+        batchCount,
+        officerCount,
+      },
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Get Dashboard Stats : ${err}`
+    );
 
     return res.status(500).json({
       message: "Server error",

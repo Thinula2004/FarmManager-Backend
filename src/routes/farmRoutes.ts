@@ -4,6 +4,7 @@ import {
   getAllFarms,
   updateFarm,
   deleteFarm,
+  getDashboardStats,
 } from "../controllers/farmController";
 import { authenticate } from "../services/Authenticator";
 import { authorize } from "../services/Authorize";
@@ -36,6 +37,13 @@ router.delete(
   authenticate,
   authorize("owner"),
   deleteFarm
+);
+
+router.get(
+  "/stats",
+  authenticate,
+  authorize("owner"),
+  getDashboardStats
 );
 
 export default router;
