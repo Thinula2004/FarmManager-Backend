@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Batch from "../models/Batch";
 import Farm from "../models/Farm";
 import Breed from "../models/Breed";
+import Visit from "../models/Visit";
 
 // Add a new batch
 
@@ -150,30 +151,103 @@ export const getBatchesByFarm = async (
     const batches = await Batch.find({
       farm: farmID,
     })
-      .populate(
-        "farm",
-        "name city address customer tel"
-      )
       .populate("breed", "name")
       .sort({
         createdAt: -1,
       });
 
+    const batchIds = batches.map((batch) => batch._id);
+
+    const mortalityResults = await Visit.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          totalMortality: {
+            $sum: "$mortality",
+          },
+        },
+      },
+    ]);
+
+    const latestVisits = await Visit.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $sort: {
+          visitedDate: -1,
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          latestVisit: {
+            $first: "$$ROOT",
+          },
+        },
+      },
+    ]);
+
+    const mortalityMap = new Map(
+      mortalityResults.map((item) => [
+        item._id.toString(),
+        item.totalMortality,
+      ])
+    );
+
+    const latestVisitMap = new Map(
+      latestVisits.map((item) => [
+        item._id.toString(),
+        item.latestVisit,
+      ])
+    );
+
     return res.status(200).json({
       message: "Batches retrieved successfully",
-      batches: batches.map((batch) => ({
-        id: batch._id,
-        name: batch.name,
-        farm: batch.farm,
-        inDate: batch.inDate,
-        initialCount: batch.initialCount,
-        breed: batch.breed,
-        subBreed: batch.subBreed,
-        totalCost: batch.totalCost,
-        status: batch.status,
-        createdAt: batch.createdAt,
-        updatedAt: batch.updatedAt,
-      })),
+
+      batches: batches.map((batch) => {
+        const batchId = batch._id.toString();
+
+        const latestVisit = latestVisitMap.get(batchId);
+
+        return {
+          id: batch._id,
+          name: batch.name,
+          farm: batch.farm,
+          inDate: batch.inDate,
+          initialCount: batch.initialCount,
+          breed: batch.breed,
+          subBreed: batch.subBreed,
+          totalCost: batch.totalCost,
+          status: batch.status,
+
+          totalMortality:
+            mortalityMap.get(batchId) ?? 0,
+
+          avgWeight:
+            latestVisit?.avgWeight ?? 0,
+
+          fcr:
+            latestVisit?.FCR ?? 0,
+
+          lastVisit:
+            latestVisit?.visitedDate ?? null,
+
+          createdAt: batch.createdAt,
+          updatedAt: batch.updatedAt,
+        };
+      }),
     });
   } catch (err) {
     console.log(
