@@ -31,7 +31,7 @@ export const addUser = async (
     ) {
       return res.status(400).json({
         message:
-          "Name, phone, password and at least one farmId are required",
+          "Name, phone, password and at least one farm are required",
       });
     }
 
@@ -119,7 +119,7 @@ export const updateUser = async (
     ) {
       return res.status(400).json({
         message:
-          "Name, phone and at least one farmId are required",
+          "Name, phone and at least one farm are required",
       });
     }
 
