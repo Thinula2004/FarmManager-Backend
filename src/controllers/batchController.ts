@@ -151,6 +151,10 @@ export const getBatchesByFarm = async (
     const batches = await Batch.find({
       farm: farmID,
     })
+      .populate(
+        "farm",
+        "name city address customer tel"
+      )
       .populate("breed", "name")
       .sort({
         createdAt: -1,

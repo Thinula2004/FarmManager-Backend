@@ -8,6 +8,7 @@ import batchRoutes from "./routes/batchRoutes";
 import feedRoutes from "./routes/feedRoutes";
 import visitRoutes from "./routes/visitRoutes";
 import userRoutes from "./routes/userRoutes";
+import supplyRoutes from "./routes/supplyRoutes";
 
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
@@ -40,5 +41,6 @@ app.use("/api/animal", animalRoutes);
 app.use("/api/batch", batchRoutes);
 app.use("/api/feed", feedRoutes);
 app.use("/api/visit", visitRoutes);
+app.use("/api/supply", supplyRoutes);
 
 export default app;
