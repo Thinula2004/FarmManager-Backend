@@ -132,191 +132,6 @@ export const deleteBatch = async (
 };
 
 
-// Get all batches belonging to a farm
-
-export const getBatchesByFarm = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { farmID } = req.params;
-
-    const existingFarm = await Farm.findById(farmID);
-
-    if (!existingFarm) {
-      return res.status(404).json({
-        message: "Farm not found",
-      });
-    }
-
-    const batches = await Batch.find({
-      farm: farmID,
-    })
-      .populate(
-        "farm",
-        "name city address customer tel"
-      )
-      .populate("breed", "name")
-      .sort({
-        createdAt: -1,
-      });
-
-    const batchIds = batches.map((batch) => batch._id);
-
-    const mortalityResults = await Visit.aggregate([
-      {
-        $match: {
-          batch: {
-            $in: batchIds,
-          },
-        },
-      },
-      {
-        $group: {
-          _id: "$batch",
-          totalMortality: {
-            $sum: "$mortality",
-          },
-        },
-      },
-    ]);
-
-    const latestVisits = await Visit.aggregate([
-      {
-        $match: {
-          batch: {
-            $in: batchIds,
-          },
-        },
-      },
-      {
-        $sort: {
-          visitedDate: -1,
-        },
-      },
-      {
-        $group: {
-          _id: "$batch",
-          latestVisit: {
-            $first: "$$ROOT",
-          },
-        },
-      },
-    ]);
-
-    const latestFeedEntries = await FeedEntry.aggregate([
-      {
-        $match: {
-          batch: {
-            $in: batchIds,
-          },
-        },
-      },
-      {
-        $sort: {
-          createdAt: -1,
-        },
-      },
-      {
-        $group: {
-          _id: "$batch",
-          latestFeedEntry: {
-            $first: "$$ROOT",
-          },
-        },
-      },
-    ]);
-
-    const mortalityMap = new Map(
-      mortalityResults.map((item) => [
-        item._id.toString(),
-        item.totalMortality,
-      ])
-    );
-
-    const latestVisitMap = new Map(
-      latestVisits.map((item) => [
-        item._id.toString(),
-        item.latestVisit,
-      ])
-    );
-
-    const latestFeedEntryMap = new Map(
-      latestFeedEntries.map((item) => [
-        item._id.toString(),
-        item.latestFeedEntry,
-      ])
-    );
-
-    return res.status(200).json({
-      message: "Batches retrieved successfully",
-
-      batches: batches.map((batch) => {
-        const batchId = batch._id.toString();
-
-        const latestVisit = latestVisitMap.get(batchId);
-        const latestFeedEntry = latestFeedEntryMap.get(batchId);
-
-        let feedRemaining = 0;
-
-        if (latestVisit) {
-          feedRemaining = latestVisit.remainingFeed;
-
-          if (
-            latestFeedEntry &&
-            new Date(latestFeedEntry.createdAt).getTime() >
-              new Date(latestVisit.visitedDate).getTime()
-          ) {
-            feedRemaining =
-              latestVisit.remainingFeed +
-              latestFeedEntry.weight;
-          }
-        } else if (latestFeedEntry) {
-          feedRemaining = latestFeedEntry.weight;
-        }
-
-        return {
-          id: batch._id,
-          name: batch.name,
-          farm: batch.farm,
-          inDate: batch.inDate,
-          initialCount: batch.initialCount,
-          breed: batch.breed,
-          subBreed: batch.subBreed,
-          totalCost: batch.totalCost,
-          status: batch.status,
-
-          totalMortality:
-            mortalityMap.get(batchId) ?? 0,
-
-          avgWeight:
-            latestVisit?.avgWeight ?? 0,
-
-          fcr:
-            latestVisit?.FCR ?? 0,
-
-          lastVisit:
-            latestVisit?.visitedDate ?? null,
-
-          feedRemaining,
-
-          createdAt: batch.createdAt,
-          updatedAt: batch.updatedAt,
-        };
-      }),
-    });
-  } catch (err) {
-    console.log(
-      `Error Occured During Get Batches By Farm : ${err}`
-    );
-
-    return res.status(500).json({
-      message: "Server error",
-    });
-  }
-};
-
-
 // Update batch status only
 
 export const updateBatchStatus = async (
@@ -386,7 +201,6 @@ export const updateBatchStatus = async (
 };
 
 // Get a single batch by ID
-
 export const getBatchByID = async (
   req: Request,
   res: Response
@@ -409,7 +223,6 @@ export const getBatchByID = async (
 
     const batchId = batch._id;
 
-    // ── Total mortality ───────────────────────────────────
     const mortalityResult = await Visit.aggregate([
       {
         $match: {
@@ -426,7 +239,6 @@ export const getBatchByID = async (
       },
     ]);
 
-    // ── Latest visit ──────────────────────────────────────
     const latestVisitResult = await Visit.aggregate([
       {
         $match: {
@@ -443,8 +255,9 @@ export const getBatchByID = async (
       },
     ]);
 
-    // ── Latest feed entry ─────────────────────────────────
-    const latestFeedEntryResult = await FeedEntry.aggregate([
+    const latestVisit = latestVisitResult[0];
+
+    const feedEntries = await FeedEntry.aggregate([
       {
         $match: {
           batch: batchId,
@@ -455,37 +268,34 @@ export const getBatchByID = async (
           createdAt: -1,
         },
       },
-      {
-        $limit: 1,
-      },
     ]);
 
-    const latestVisit = latestVisitResult[0];
-    const latestFeedEntry = latestFeedEntryResult[0];
-
-    const totalMortality =
-      mortalityResult[0]?.totalMortality ?? 0;
-
-    // ── Calculate remaining feed ──────────────────────────
     let feedRemaining = 0;
 
     if (latestVisit) {
       feedRemaining = latestVisit.remainingFeed;
 
-      // A feed entry was added after the latest visit
-      if (
-        latestFeedEntry &&
-        new Date(latestFeedEntry.createdAt).getTime() >
-          new Date(latestVisit.visitedDate).getTime()
-      ) {
-        feedRemaining =
-          latestVisit.remainingFeed +
-          latestFeedEntry.weight;
-      }
-    } else if (latestFeedEntry) {
-      // No visits yet, so all the latest feed is remaining
-      feedRemaining = latestFeedEntry.weight;
+      const feedAddedAfterVisit = feedEntries
+        .filter(
+          (entry) =>
+            new Date(entry.createdAt).getTime() >
+            new Date(latestVisit.visitedDate).getTime()
+        )
+        .reduce(
+          (total, entry) => total + (entry.weight ?? 0),
+          0
+        );
+
+      feedRemaining += feedAddedAfterVisit;
+    } else {
+      feedRemaining = feedEntries.reduce(
+        (total, entry) => total + (entry.weight ?? 0),
+        0
+      );
     }
+
+    const totalMortality =
+      mortalityResult[0]?.totalMortality ?? 0;
 
     return res.status(200).json({
       message: "Batch retrieved successfully",
@@ -521,6 +331,211 @@ export const getBatchByID = async (
   } catch (err) {
     console.log(
       `Error Occured During Get Batch By ID : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+export const getBatchesByFarm = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { farmID } = req.params;
+
+    const existingFarm = await Farm.findById(farmID);
+
+    if (!existingFarm) {
+      return res.status(404).json({
+        message: "Farm not found",
+      });
+    }
+
+    const batches = await Batch.find({
+      farm: farmID,
+    })
+      .populate(
+        "farm",
+        "name city address customer tel"
+      )
+      .populate("breed", "name")
+      .sort({
+        createdAt: -1,
+      });
+
+    const batchIds = batches.map(
+      (batch) => batch._id
+    );
+
+    const mortalityResults = await Visit.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          totalMortality: {
+            $sum: "$mortality",
+          },
+        },
+      },
+    ]);
+
+    const latestVisits = await Visit.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $sort: {
+          visitedDate: -1,
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          latestVisit: {
+            $first: "$$ROOT",
+          },
+        },
+      },
+    ]);
+
+    const feedEntries = await FeedEntry.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $project: {
+          batch: 1,
+          weight: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ]);
+
+    const mortalityMap = new Map(
+      mortalityResults.map((item) => [
+        item._id.toString(),
+        item.totalMortality,
+      ])
+    );
+
+    const latestVisitMap = new Map(
+      latestVisits.map((item) => [
+        item._id.toString(),
+        item.latestVisit,
+      ])
+    );
+
+    const feedEntriesMap = new Map<string, any[]>();
+
+    feedEntries.forEach((entry) => {
+      const batchId = entry.batch.toString();
+
+      if (!feedEntriesMap.has(batchId)) {
+        feedEntriesMap.set(batchId, []);
+      }
+
+      feedEntriesMap.get(batchId)!.push(entry);
+    });
+
+    return res.status(200).json({
+      message: "Batches retrieved successfully",
+
+      batches: batches.map((batch) => {
+        const batchId = batch._id.toString();
+
+        const latestVisit =
+          latestVisitMap.get(batchId);
+
+        const batchFeedEntries =
+          feedEntriesMap.get(batchId) ?? [];
+
+        let feedRemaining = 0;
+
+        if (latestVisit) {
+          feedRemaining =
+            latestVisit.remainingFeed;
+
+          const feedAddedAfterVisit =
+            batchFeedEntries
+              .filter(
+                (entry) =>
+                  new Date(entry.createdAt).getTime() >
+                  new Date(
+                    latestVisit.visitedDate
+                  ).getTime()
+              )
+              .reduce(
+                (total, entry) =>
+                  total + (entry.weight ?? 0),
+                0
+              );
+
+          feedRemaining += feedAddedAfterVisit;
+        } else {
+          feedRemaining =
+            batchFeedEntries.reduce(
+              (total, entry) =>
+                total + (entry.weight ?? 0),
+              0
+            );
+        }
+
+        return {
+          id: batch._id,
+          name: batch.name,
+          farm: batch.farm,
+          inDate: batch.inDate,
+          initialCount: batch.initialCount,
+          breed: batch.breed,
+          subBreed: batch.subBreed,
+          totalCost: batch.totalCost,
+          status: batch.status,
+
+          totalMortality:
+            mortalityMap.get(batchId) ?? 0,
+
+          avgWeight:
+            latestVisit?.avgWeight ?? 0,
+
+          fcr:
+            latestVisit?.FCR ?? 0,
+
+          lastVisit:
+            latestVisit?.visitedDate ?? null,
+
+          feedRemaining,
+
+          createdAt: batch.createdAt,
+          updatedAt: batch.updatedAt,
+        };
+      }),
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Get Batches By Farm : ${err}`
     );
 
     return res.status(500).json({
