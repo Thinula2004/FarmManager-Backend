@@ -3,6 +3,7 @@ import Batch from "../models/Batch";
 import Farm from "../models/Farm";
 import Breed from "../models/Breed";
 import Visit from "../models/Visit";
+import FeedEntry from "../models/FeedEntry";
 
 // Add a new batch
 
@@ -203,6 +204,29 @@ export const getBatchesByFarm = async (
       },
     ]);
 
+    const latestFeedEntries = await FeedEntry.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          latestFeedEntry: {
+            $first: "$$ROOT",
+          },
+        },
+      },
+    ]);
+
     const mortalityMap = new Map(
       mortalityResults.map((item) => [
         item._id.toString(),
@@ -217,6 +241,13 @@ export const getBatchesByFarm = async (
       ])
     );
 
+    const latestFeedEntryMap = new Map(
+      latestFeedEntries.map((item) => [
+        item._id.toString(),
+        item.latestFeedEntry,
+      ])
+    );
+
     return res.status(200).json({
       message: "Batches retrieved successfully",
 
@@ -224,6 +255,25 @@ export const getBatchesByFarm = async (
         const batchId = batch._id.toString();
 
         const latestVisit = latestVisitMap.get(batchId);
+        const latestFeedEntry = latestFeedEntryMap.get(batchId);
+
+        let feedRemaining = 0;
+
+        if (latestVisit) {
+          feedRemaining = latestVisit.remainingFeed;
+
+          if (
+            latestFeedEntry &&
+            new Date(latestFeedEntry.createdAt).getTime() >
+              new Date(latestVisit.visitedDate).getTime()
+          ) {
+            feedRemaining =
+              latestVisit.remainingFeed +
+              latestFeedEntry.weight;
+          }
+        } else if (latestFeedEntry) {
+          feedRemaining = latestFeedEntry.weight;
+        }
 
         return {
           id: batch._id,
@@ -247,6 +297,8 @@ export const getBatchesByFarm = async (
 
           lastVisit:
             latestVisit?.visitedDate ?? null,
+
+          feedRemaining,
 
           createdAt: batch.createdAt,
           updatedAt: batch.updatedAt,
