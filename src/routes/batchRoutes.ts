@@ -3,6 +3,7 @@ import express from "express";
 import {
   addBatch,
   deleteBatch,
+  getBatchByID,
   getBatchesByFarm,
   updateBatchStatus,
 } from "../controllers/batchController";
@@ -27,10 +28,17 @@ router.delete(
 );
 
 router.get(
-  "/:farmID",
+  "/farm/:farmID",
   authenticate,
   authorize("owner", "officer"),
   getBatchesByFarm
+);
+
+router.get(
+  "/:id",
+  authenticate,
+  authorize("owner", "officer"),
+  getBatchByID
 );
 
 router.put(

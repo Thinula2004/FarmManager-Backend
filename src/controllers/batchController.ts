@@ -384,3 +384,147 @@ export const updateBatchStatus = async (
     });
   }
 };
+
+// Get a single batch by ID
+
+export const getBatchByID = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+
+    const batch = await Batch.findById(id)
+      .populate(
+        "farm",
+        "name city address customer tel"
+      )
+      .populate("breed", "name");
+
+    if (!batch) {
+      return res.status(404).json({
+        message: "Batch not found",
+      });
+    }
+
+    const batchId = batch._id;
+
+    // ── Total mortality ───────────────────────────────────
+    const mortalityResult = await Visit.aggregate([
+      {
+        $match: {
+          batch: batchId,
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          totalMortality: {
+            $sum: "$mortality",
+          },
+        },
+      },
+    ]);
+
+    // ── Latest visit ──────────────────────────────────────
+    const latestVisitResult = await Visit.aggregate([
+      {
+        $match: {
+          batch: batchId,
+        },
+      },
+      {
+        $sort: {
+          visitedDate: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+
+    // ── Latest feed entry ─────────────────────────────────
+    const latestFeedEntryResult = await FeedEntry.aggregate([
+      {
+        $match: {
+          batch: batchId,
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+
+    const latestVisit = latestVisitResult[0];
+    const latestFeedEntry = latestFeedEntryResult[0];
+
+    const totalMortality =
+      mortalityResult[0]?.totalMortality ?? 0;
+
+    // ── Calculate remaining feed ──────────────────────────
+    let feedRemaining = 0;
+
+    if (latestVisit) {
+      feedRemaining = latestVisit.remainingFeed;
+
+      // A feed entry was added after the latest visit
+      if (
+        latestFeedEntry &&
+        new Date(latestFeedEntry.createdAt).getTime() >
+          new Date(latestVisit.visitedDate).getTime()
+      ) {
+        feedRemaining =
+          latestVisit.remainingFeed +
+          latestFeedEntry.weight;
+      }
+    } else if (latestFeedEntry) {
+      // No visits yet, so all the latest feed is remaining
+      feedRemaining = latestFeedEntry.weight;
+    }
+
+    return res.status(200).json({
+      message: "Batch retrieved successfully",
+
+      batch: {
+        id: batch._id,
+        name: batch.name,
+        farm: batch.farm,
+        inDate: batch.inDate,
+        initialCount: batch.initialCount,
+        breed: batch.breed,
+        subBreed: batch.subBreed,
+        totalCost: batch.totalCost,
+        status: batch.status,
+
+        totalMortality,
+
+        avgWeight:
+          latestVisit?.avgWeight ?? 0,
+
+        fcr:
+          latestVisit?.FCR ?? 0,
+
+        lastVisit:
+          latestVisit?.visitedDate ?? null,
+
+        feedRemaining,
+
+        createdAt: batch.createdAt,
+        updatedAt: batch.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Get Batch By ID : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
