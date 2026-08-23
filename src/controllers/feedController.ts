@@ -168,7 +168,7 @@ export const getAllFeedTypes = async (
 ) => {
   try {
     const feedTypes = await FeedType.find().sort({
-      createdAt: -1,
+      createdAt: 1,
     });
 
     return res.status(200).json({

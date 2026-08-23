@@ -117,7 +117,7 @@ export const getAllSupplyTypes = async (
 ) => {
   try {
     const supplyTypes = await SupplyType.find().sort({
-      name: 1,
+      createdAt: 1,
     });
 
     return res.status(200).json({
