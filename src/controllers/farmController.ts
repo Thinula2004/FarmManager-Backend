@@ -254,6 +254,84 @@ export const getDashboardStats = async (
   }
 };
 
+// Get Officer Statistics
+export const getOfficerStats = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { officerId } = req.params;
+
+    if (!officerId || typeof officerId !== "string") {
+      return res.status(400).json({
+        message: "officerId parameter is required",
+      });
+    }
+
+    const officer = await User.findOne({
+      _id: officerId,
+      role: "officer",
+    });
+
+    if (!officer) {
+      return res.status(404).json({
+        message: "Officer not found",
+      });
+    }
+
+    const assignments = await OfficerFarm.find({
+      officer: officerId,
+    }).select("farm");
+
+    const farmIds = assignments.map(
+      (assignment) => assignment.farm
+    );
+
+    const assignedFarms = farmIds.length;
+
+    if (farmIds.length === 0) {
+      return res.status(200).json({
+        message: "Officer statistics retrieved successfully",
+        stats: {
+          assignedFarms: 0,
+          totalVisits: 0,
+          activeBatches: 0,
+        },
+      });
+    }
+
+    const activeBatches = await Batch.countDocuments({
+      farm: {
+        $in: farmIds,
+      },
+      status: {
+        $in: ["ONGOING", "PARTIALLY_SOLD"],
+      },
+    });
+
+    const totalVisits = await Visit.countDocuments({
+      officer: officerId,
+    });
+
+    return res.status(200).json({
+      message: "Officer statistics retrieved successfully",
+      stats: {
+        assignedFarms,
+        totalVisits,
+        activeBatches,
+      },
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Get Officer Stats : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
 export const getFarmsDetailed = async (
   req: Request,
   res: Response

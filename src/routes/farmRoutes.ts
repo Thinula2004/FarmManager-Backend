@@ -7,6 +7,7 @@ import {
   getDashboardStats,
   getFarmsDetailed,
   getFarmsAssigned,
+  getOfficerStats,
 } from "../controllers/farmController";
 import { authenticate } from "../services/Authenticator";
 import { authorize } from "../services/Authorize";
@@ -46,6 +47,13 @@ router.get(
   authenticate,
   authorize("owner"),
   getDashboardStats
+);
+
+router.get(
+  "/officer/stats/:officerId",
+  authenticate,
+  authorize("owner", "officer"),
+  getOfficerStats
 );
 
 router.get(
