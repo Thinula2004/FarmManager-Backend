@@ -6,6 +6,7 @@ import {
   deleteFarm,
   getDashboardStats,
   getFarmsDetailed,
+  getFarmsAssigned,
 } from "../controllers/farmController";
 import { authenticate } from "../services/Authenticator";
 import { authorize } from "../services/Authorize";
@@ -52,6 +53,13 @@ router.get(
   authenticate,
   authorize("owner"),
   getFarmsDetailed
+);
+
+router.get(
+  "/assigned/:officerId",
+  authenticate,
+  authorize("owner", "officer"),
+  getFarmsAssigned
 );
 
 export default router;
