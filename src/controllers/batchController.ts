@@ -270,6 +270,12 @@ export const getBatchByID = async (
       },
     ]);
 
+    // Total feed given to this batch
+    const totalFeedWeight = feedEntries.reduce(
+      (total, entry) => total + (entry.weight ?? 0),
+      0
+    );
+
     let feedRemaining = 0;
 
     if (latestVisit) {
@@ -288,14 +294,24 @@ export const getBatchByID = async (
 
       feedRemaining += feedAddedAfterVisit;
     } else {
-      feedRemaining = feedEntries.reduce(
-        (total, entry) => total + (entry.weight ?? 0),
-        0
-      );
+      feedRemaining = totalFeedWeight;
     }
 
     const totalMortality =
       mortalityResult[0]?.totalMortality ?? 0;
+
+    // Live chicks = initial chicks - deaths
+    const liveChicks =
+      Math.max(batch.initialCount - totalMortality, 0);
+
+    // Average weight from latest visit
+    const avgWeight = latestVisit?.avgWeight ?? 0;
+
+    // FCR = Total Feed / (Average Weight × Live Chicks)
+    const fcr =
+      avgWeight > 0 && liveChicks > 0
+        ? totalFeedWeight / (avgWeight * liveChicks)
+        : 0;
 
     return res.status(200).json({
       message: "Batch retrieved successfully",
@@ -313,11 +329,9 @@ export const getBatchByID = async (
 
         totalMortality,
 
-        avgWeight:
-          latestVisit?.avgWeight ?? 0,
+        avgWeight,
 
-        fcr:
-          latestVisit?.FCR ?? 0,
+        fcr,
 
         lastVisit:
           latestVisit?.visitedDate ?? null,
@@ -461,78 +475,98 @@ export const getBatchesByFarm = async (
     });
 
     return res.status(200).json({
-      message: "Batches retrieved successfully",
+  message: "Batches retrieved successfully",
 
-      batches: batches.map((batch) => {
-        const batchId = batch._id.toString();
+  batches: batches.map((batch) => {
+    const batchId = batch._id.toString();
 
-        const latestVisit =
-          latestVisitMap.get(batchId);
+    const latestVisit =
+      latestVisitMap.get(batchId);
 
-        const batchFeedEntries =
-          feedEntriesMap.get(batchId) ?? [];
+    const batchFeedEntries =
+      feedEntriesMap.get(batchId) ?? [];
 
-        let feedRemaining = 0;
+    // Total feed given to this batch
+    const totalFeedWeight = batchFeedEntries.reduce(
+      (total, entry) =>
+        total + (entry.weight ?? 0),
+      0
+    );
 
-        if (latestVisit) {
-          feedRemaining =
-            latestVisit.remainingFeed;
+    let feedRemaining = 0;
 
-          const feedAddedAfterVisit =
-            batchFeedEntries
-              .filter(
-                (entry) =>
-                  new Date(entry.createdAt).getTime() >
-                  new Date(
-                    latestVisit.visitedDate
-                  ).getTime()
-              )
-              .reduce(
-                (total, entry) =>
-                  total + (entry.weight ?? 0),
-                0
-              );
+    if (latestVisit) {
+      feedRemaining =
+        latestVisit.remainingFeed;
 
-          feedRemaining += feedAddedAfterVisit;
-        } else {
-          feedRemaining =
-            batchFeedEntries.reduce(
-              (total, entry) =>
-                total + (entry.weight ?? 0),
-              0
-            );
-        }
+      const feedAddedAfterVisit =
+        batchFeedEntries
+          .filter(
+            (entry) =>
+              new Date(entry.createdAt).getTime() >
+              new Date(
+                latestVisit.visitedDate
+              ).getTime()
+          )
+          .reduce(
+            (total, entry) =>
+              total + (entry.weight ?? 0),
+            0
+          );
 
-        return {
-          id: batch._id,
-          name: batch.name,
-          farm: batch.farm,
-          inDate: batch.inDate,
-          initialCount: batch.initialCount,
-          breed: batch.breed,
-          subBreed: batch.subBreed,
-          totalCost: batch.totalCost,
-          status: batch.status,
+      feedRemaining += feedAddedAfterVisit;
+    } else {
+      feedRemaining =
+        totalFeedWeight;
+    }
 
-          totalMortality:
-            mortalityMap.get(batchId) ?? 0,
+    const totalMortality =
+      mortalityMap.get(batchId) ?? 0;
 
-          avgWeight:
-            latestVisit?.avgWeight ?? 0,
+    // Live chicks = initial chicks - deaths
+    const liveChicks = Math.max(
+      batch.initialCount - totalMortality,
+      0
+    );
 
-          fcr:
-            latestVisit?.FCR ?? 0,
+    // Average weight from latest visit
+    const avgWeight =
+      latestVisit?.avgWeight ?? 0;
 
-          lastVisit:
-            latestVisit?.visitedDate ?? null,
+    // FCR = Total Feed / (Average Weight × Live Chicks)
+    const fcr =
+      avgWeight > 0 && liveChicks > 0
+        ? totalFeedWeight /
+          (avgWeight * liveChicks)
+        : 0;
 
-          feedRemaining,
+    return {
+      id: batch._id,
+      name: batch.name,
+      farm: batch.farm,
+      inDate: batch.inDate,
+      initialCount: batch.initialCount,
+      breed: batch.breed,
+      subBreed: batch.subBreed,
+      totalCost: batch.totalCost,
+      status: batch.status,
 
-          createdAt: batch.createdAt,
-          updatedAt: batch.updatedAt,
-        };
-      }),
-    });
+      totalMortality,
+
+      avgWeight,
+
+      fcr,
+
+      lastVisit:
+        latestVisit?.visitedDate ?? null,
+
+      feedRemaining,
+
+      createdAt: batch.createdAt,
+      updatedAt: batch.updatedAt,
+    };
+  }),
+});
   } catch (err) {
     console.log(
       `Error Occured During Get Batches By Farm : ${err}`
