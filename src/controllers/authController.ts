@@ -4,7 +4,10 @@ import jwt from "jsonwebtoken";
 import User from "../models/User";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const { phone, password } = req.body;
 
@@ -16,7 +19,16 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    if (!user.isActive) {
+      return res.status(403).json({
+        message: "User account is inactive",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isMatch) {
       return res.status(400).json({
@@ -24,8 +36,6 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Increment token version.
-    // This invalidates any previously issued JWT for this user.
     user.tokenVersion += 1;
     await user.save();
 
@@ -38,19 +48,22 @@ export const login = async (req: Request, res: Response) => {
       process.env.JWT_SECRET as string
     );
 
-    res.json({
+    return res.status(200).json({
       token,
       user: {
         id: user._id,
         name: user.name,
         phone: user.phone,
         role: user.role,
+        isActive: user.isActive,
       },
     });
   } catch (err) {
-    console.log(`Error Occured During Login : ${err}`);
+    console.log(
+      `Error Occured During Login : ${err}`
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error",
     });
   }

@@ -38,6 +38,12 @@ export const authenticate = async (
       });
     }
 
+    if (!user.isActive) {
+      return res.status(401).json({
+        message: "User account is inactive",
+      });
+    }
+
     if (user.tokenVersion !== decoded.tokenVersion) {
       return res.status(401).json({
         message: "Token is no longer valid",
