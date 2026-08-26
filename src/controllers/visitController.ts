@@ -354,3 +354,59 @@ export const getVisitsByBatch = async (
     });
   }
 };
+
+// Get all visits done by an officer
+export const getVisitsByOfficer = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { officerId } = req.params;
+
+    if (!officerId) {
+      return res.status(400).json({
+        message: "Officer ID is required",
+      });
+    }
+
+    const visits = await Visit.find({
+      officer: officerId,
+    })
+      .populate({
+        path: "batch",
+        select: "name inDate initialCount breed subBreed status",
+        populate: {
+          path: "breed",
+          select: "name",
+        },
+      })
+      .populate({
+        path: "feedEntry",
+        select: "weight cost",
+        populate: {
+          path: "feedType",
+          select: "name",
+        },
+      })
+      .populate({
+        path: "officer",
+        select: "name phone role",
+      })
+      .sort({
+        visitedDate: -1,
+      });
+
+    return res.status(200).json({
+      message: "Officer visits retrieved successfully",
+      visits,
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Get Visits Of Officer : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};

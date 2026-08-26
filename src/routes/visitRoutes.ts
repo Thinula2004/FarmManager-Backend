@@ -5,6 +5,7 @@ import {
   updateVisit,
   deleteVisit,
   getVisitsByBatch,
+  getVisitsByOfficer,
 } from "../controllers/visitController";
 
 import { authenticate } from "../services/Authenticator";
@@ -38,6 +39,13 @@ router.get(
   authenticate,
   authorize("owner", "officer"),
   getVisitsByBatch
+);
+
+router.get(
+  "/officer/:officerId",
+  authenticate,
+  authorize("owner", "officer"),
+  getVisitsByOfficer
 );
 
 export default router;
