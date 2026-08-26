@@ -8,6 +8,8 @@ import {
   getFarmsDetailed,
   getFarmsAssigned,
   getOfficerStats,
+  openFarm,
+  closeFarm,
 } from "../controllers/farmController";
 import { authenticate } from "../services/Authenticator";
 import { authorize } from "../services/Authorize";
@@ -68,6 +70,20 @@ router.get(
   authenticate,
   authorize("owner", "officer"),
   getFarmsAssigned
+);
+
+router.post(
+  "/open/:farmId",
+  authenticate,
+  authorize("owner"),
+  openFarm
+);
+
+router.post(
+  "/close/:farmId",
+  authenticate,
+  authorize("owner"),
+  closeFarm
 );
 
 export default router;

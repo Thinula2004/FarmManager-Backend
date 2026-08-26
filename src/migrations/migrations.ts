@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import User from "../models/User";
+import Farm from "../models/Farm";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -14,19 +14,19 @@ const migrate = async () => {
 
     console.log("Connected to MongoDB");
 
-    const result = await User.updateMany(
+    const result = await Farm.updateMany(
       {
-        isActive: { $exists: false },
+        isOpen: { $exists: false },
       },
       {
         $set: {
-          isActive: true,
+          isOpen: true,
         },
       }
     );
 
     console.log(
-      `Migration completed. Updated ${result.modifiedCount} users.`
+      `Migration completed. Updated ${result.modifiedCount} farms.`
     );
 
     await mongoose.disconnect();

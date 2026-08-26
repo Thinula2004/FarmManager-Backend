@@ -67,6 +67,7 @@ export const getAllFarms = async (
         address: farm.address,
         customer: farm.customer,
         tel: farm.tel,
+        isOpen: farm.isOpen,
         createdAt: farm.createdAt,
         updatedAt: farm.updatedAt,
       })),
@@ -182,16 +183,28 @@ export const getDashboardStats = async (
   res: Response
 ) => {
   try {
-    // Total farms
-    const farmCount = await Farm.countDocuments();
+    // Get all open farms
+    const openFarms = await Farm.find({
+      isOpen: true,
+    }).select("_id");
+
+    const openFarmIds = openFarms.map(
+      (farm) => farm._id
+    );
+
+    // Total open farms
+    const farmCount = openFarms.length;
 
     // Total officers
     const officerCount = await User.countDocuments({
       role: "officer",
     });
 
-    // Get all ongoing batches
+    // Get ongoing batches belonging to open farms
     const ongoingBatches = await Batch.find({
+      farm: {
+        $in: openFarmIds,
+      },
       status: "ONGOING",
     }).select("_id initialCount");
 
@@ -206,7 +219,8 @@ export const getDashboardStats = async (
       (batch) => batch._id
     );
 
-    // Get total mortality from visits belonging to ongoing batches
+    // Get total mortality from visits belonging
+    // to ongoing batches of open farms
     const mortalityResult = await Visit.aggregate([
       {
         $match: {
@@ -231,8 +245,10 @@ export const getDashboardStats = async (
         : 0;
 
     // Calculate live chicks
-    const liveChicks =
-      totalInitialChicks - totalMortality;
+    const liveChicks = Math.max(
+      totalInitialChicks - totalMortality,
+      0
+    );
 
     return res.status(200).json({
       message: "Dashboard statistics retrieved successfully",
@@ -283,8 +299,20 @@ export const getOfficerStats = async (
       officer: officerId,
     }).select("farm");
 
-    const farmIds = assignments.map(
+    const assignedFarmIds = assignments.map(
       (assignment) => assignment.farm
+    );
+
+    // Only open farms
+    const openFarms = await Farm.find({
+      _id: {
+        $in: assignedFarmIds,
+      },
+      isOpen: true,
+    }).select("_id");
+
+    const farmIds = openFarms.map(
+      (farm) => farm._id
     );
 
     const assignedFarms = farmIds.length;
@@ -309,8 +337,18 @@ export const getOfficerStats = async (
       },
     });
 
+    // Only visits belonging to batches of open farms
+    const openFarmBatchIds = await Batch.find({
+      farm: {
+        $in: farmIds,
+      },
+    }).distinct("_id");
+
     const totalVisits = await Visit.countDocuments({
       officer: officerId,
+      batch: {
+        $in: openFarmBatchIds,
+      },
     });
 
     return res.status(200).json({
@@ -337,9 +375,11 @@ export const getFarmsDetailed = async (
   res: Response
 ) => {
   try {
-    const farms = await Farm.find().sort({
-      createdAt: -1,
-    });
+    const farms = await Farm.find({
+  isOpen: true,
+}).sort({
+  createdAt: -1,
+});
 
     const detailedFarms = await Promise.all(
       farms.map(async (farm) => {
@@ -517,12 +557,13 @@ export const getFarmsAssigned = async (
     }
 
     const farms = await Farm.find({
-      _id: {
-        $in: farmIds,
-      },
-    }).sort({
-      createdAt: -1,
-    });
+  _id: {
+    $in: farmIds,
+  },
+  isOpen: true,
+}).sort({
+  createdAt: -1,
+});
 
     const detailedFarms = await Promise.all(
       farms.map(async (farm) => {
@@ -671,6 +712,91 @@ export const getFarmsAssigned = async (
   } catch (err) {
     console.log(
       `Error Occured During Get Farms Assigned : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+// Open Farm
+
+export const openFarm = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { farmId } = req.params;
+
+    if (!farmId || typeof farmId !== "string") {
+      return res.status(400).json({
+        message: "farmId parameter is required",
+      });
+    }
+
+    const farm = await Farm.findById(farmId);
+
+    if (!farm) {
+      return res.status(404).json({
+        message: "Farm not found",
+      });
+    }
+
+    farm.isOpen = true;
+
+    await farm.save();
+
+    return res.status(200).json({
+      message: "Farm opened successfully",
+      success: true,
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Open Farm : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// Close Farm
+
+export const closeFarm = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { farmId } = req.params;
+
+    if (!farmId || typeof farmId !== "string") {
+      return res.status(400).json({
+        message: "farmId parameter is required",
+      });
+    }
+
+    const farm = await Farm.findById(farmId);
+
+    if (!farm) {
+      return res.status(404).json({
+        message: "Farm not found",
+      });
+    }
+
+    farm.isOpen = false;
+
+    await farm.save();
+
+    return res.status(200).json({
+      message: "Farm closed successfully",
+      success: true,
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Close Farm : ${err}`
     );
 
     return res.status(500).json({

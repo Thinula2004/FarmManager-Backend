@@ -6,6 +6,7 @@ export interface IFarm extends mongoose.Document {
   address: string;
   customer: string;
   tel: string;
+  isOpen: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,21 +17,30 @@ const farmSchema = new mongoose.Schema<IFarm>(
       type: String,
       required: true,
     },
+
     city: {
       type: String,
       required: true,
     },
+
     address: {
       type: String,
       required: true,
     },
+
     customer: {
       type: String,
       required: true,
     },
+
     tel: {
       type: String,
       required: true,
+    },
+
+    isOpen: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
