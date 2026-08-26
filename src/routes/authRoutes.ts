@@ -13,6 +13,6 @@ router.get(
   authenticate,
   getCurrentUser
 );
-router.put("/change-password", authenticate, authorize("owner"), changePassword);
+router.put("/change-password", authenticate, authorize("owner", "officer"), changePassword);
 
 export default router;
