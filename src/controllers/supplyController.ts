@@ -2,6 +2,10 @@ import { Request, Response } from "express";
 import SupplyType from "../models/SupplyType";
 import Supply from "../models/Supply";
 import Batch from "../models/Batch";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { createActivity } from "../services/ActivityService";
+import { ActivityAction } from "../enums/ActivityAction";
+import { ActivityEntity } from "../enums/ActivityEntity";
 
 // ============================================================
 // Supply Type
@@ -171,12 +175,10 @@ export const deleteSupplyType = async (
   }
 };
 
-// ============================================================
 // Supply
-// ============================================================
 
 export const addSupply = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -238,6 +240,13 @@ export const addSupply = async (
       supply._id
     ).populate("type", "name");
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.ADDED,
+      entity: ActivityEntity.SUPPLY,
+      entityId: supply._id.toString(),
+    });
+
     return res.status(201).json({
       message: "Supply created successfully",
       supply: {
@@ -263,7 +272,7 @@ export const addSupply = async (
 };
 
 export const deleteSupply = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -278,6 +287,13 @@ export const deleteSupply = async (
     }
 
     await Supply.findByIdAndDelete(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.SUPPLY,
+      entityId: supply._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Supply deleted successfully",

@@ -4,11 +4,15 @@ import Farm from "../models/Farm";
 import Breed from "../models/Breed";
 import Visit from "../models/Visit";
 import FeedEntry from "../models/FeedEntry";
+import { ActivityAction } from "../enums/ActivityAction";
+import { ActivityEntity } from "../enums/ActivityEntity";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { createActivity } from "../services/ActivityService";
 
 // Add a new batch
 
 export const addBatch = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -74,6 +78,13 @@ export const addBatch = async (
       status: "ONGOING",
     });
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.CREATED,
+      entity: ActivityEntity.BATCH,
+      entityId: batch._id.toString(),
+    });
+
     return res.status(201).json({
       message: "Batch created successfully",
       batch: {
@@ -103,7 +114,7 @@ export const addBatch = async (
 // Delete a batch
 
 export const deleteBatch = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -118,6 +129,13 @@ export const deleteBatch = async (
     }
 
     await Batch.findByIdAndDelete(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.BATCH,
+      entityId: batch._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Batch deleted successfully",
@@ -135,7 +153,7 @@ export const deleteBatch = async (
 // Update batch status only
 
 export const updateBatchStatus = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -162,6 +180,13 @@ export const updateBatchStatus = async (
     }
 
     const batch = await Batch.findById(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.UPDATED,
+      entity: ActivityEntity.BATCH,
+      entityId: id.toString(),
+    });
 
     if (!batch) {
       return res.status(404).json({
@@ -523,17 +548,14 @@ export const getBatchesByFarm = async (
     const totalMortality =
       mortalityMap.get(batchId) ?? 0;
 
-    // Live chicks = initial chicks - deaths
     const liveChicks = Math.max(
       batch.initialCount - totalMortality,
       0
     );
 
-    // Average weight from latest visit
     const avgWeight =
       latestVisit?.avgWeight ?? 0;
 
-    // FCR = Total Feed / (Average Weight × Live Chicks)
     const fcr =
       avgWeight > 0 && liveChicks > 0
         ? (totalFeedWeight - feedRemaining) /

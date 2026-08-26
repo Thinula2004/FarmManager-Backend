@@ -4,8 +4,15 @@ import Batch from "../models/Batch";
 import Visit from "../models/Visit";
 import User from "../models/User";
 import OfficerFarm from "../models/OfficerFarm";
+import { createActivity } from "../services/ActivityService";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { ActivityAction } from "../enums/ActivityAction";
+import { ActivityEntity } from "../enums/ActivityEntity";
 
-export const addFarm = async (req: Request, res: Response) => {
+export const addFarm = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
     const {
       name,
@@ -27,6 +34,13 @@ export const addFarm = async (req: Request, res: Response) => {
       address,
       customer,
       tel,
+    });
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.CREATED,
+      entity: ActivityEntity.FARM,
+      entityId: farm._id.toString(),
     });
 
     return res.status(201).json({
@@ -81,12 +95,10 @@ export const getAllFarms = async (
   }
 };
 
-// ============================================================
 // Update Farm
-// ============================================================
 
 export const updateFarm = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -123,6 +135,13 @@ export const updateFarm = async (
 
     await farm.save();
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.UPDATED,
+      entity: ActivityEntity.FARM,
+      entityId: farm._id.toString(),
+    });
+
     return res.status(200).json({
       message: "Farm updated successfully",
       farm: {
@@ -145,12 +164,10 @@ export const updateFarm = async (
   }
 };
 
-// ============================================================
 // Delete Farm
-// ============================================================
 
 export const deleteFarm = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -165,6 +182,13 @@ export const deleteFarm = async (
     }
 
     await Farm.findByIdAndDelete(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.FARM,
+      entityId: farm._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Farm deleted successfully",
@@ -723,7 +747,7 @@ export const getFarmsAssigned = async (
 // Open Farm
 
 export const openFarm = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -747,6 +771,13 @@ export const openFarm = async (
 
     await farm.save();
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.OPENED,
+      entity: ActivityEntity.FARM,
+      entityId: farm._id.toString(),
+    });
+
     return res.status(200).json({
       message: "Farm opened successfully",
       success: true,
@@ -766,7 +797,7 @@ export const openFarm = async (
 // Close Farm
 
 export const closeFarm = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -789,6 +820,13 @@ export const closeFarm = async (
     farm.isOpen = false;
 
     await farm.save();
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.CLOSED,
+      entity: ActivityEntity.FARM,
+      entityId: farm._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Farm closed successfully",

@@ -6,6 +6,9 @@ import Farm from "../models/Farm";
 import OfficerFarm from "../models/OfficerFarm";
 
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { createActivity } from "../services/ActivityService";
+import { ActivityAction } from "../enums/ActivityAction";
+import { ActivityEntity } from "../enums/ActivityEntity";
 
 
 // Add officer
@@ -68,6 +71,13 @@ export const addUser = async (
       password: hashedPassword,
       role: "officer",
       isActive: true,
+    });
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.ADDED,
+      entity: ActivityEntity.OFFICER,
+      entityId: user._id.toString(),
     });
 
     await OfficerFarm.insertMany(
@@ -187,6 +197,13 @@ export const updateUser = async (
       }))
     );
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.UPDATED,
+      entity: ActivityEntity.OFFICER,
+      entityId: user._id.toString(),
+    });
+
     return res.status(200).json({
       message: "Officer updated successfully",
       user: {
@@ -239,6 +256,13 @@ export const deleteUser = async (
     });
 
     await User.findByIdAndDelete(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.OFFICER,
+      entityId: user._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Officer deleted successfully",
@@ -347,10 +371,16 @@ export const activateUser = async (
 
     user.isActive = true;
 
-    // Invalidate existing JWT
     user.tokenVersion += 1;
 
     await user.save();
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.ACTIVATED,
+      entity: ActivityEntity.OFFICER,
+      entityId: user._id.toString(),
+    });
 
     return res.status(200).json({
       message: "User activated successfully",
@@ -409,6 +439,13 @@ export const deactivateUser = async (
     user.tokenVersion += 1;
 
     await user.save();
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DEACTIVATED,
+      entity: ActivityEntity.OFFICER,
+      entityId: user._id.toString(),
+    });
 
     return res.status(200).json({
       message: "User deactivated successfully",

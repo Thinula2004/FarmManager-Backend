@@ -3,6 +3,9 @@ import Visit from "../models/Visit";
 import Batch from "../models/Batch";
 import FeedEntry from "../models/FeedEntry";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { createActivity } from "../services/ActivityService";
+import { ActivityAction } from "../enums/ActivityAction";
+import { ActivityEntity } from "../enums/ActivityEntity";
 
 // Add a new field visit
 
@@ -128,6 +131,13 @@ export const addVisit = async (
       },
     ]);
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.ADDED,
+      entity: ActivityEntity.VISIT,
+      entityId: visit._id.toString(),
+    });
+
 
     return res.status(201).json({
       message: "Field visit created successfully",
@@ -149,7 +159,7 @@ export const addVisit = async (
 // Update a field visit
 
 export const updateVisit = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -246,6 +256,13 @@ export const updateVisit = async (
       },
     ]);
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.UPDATED,
+      entity: ActivityEntity.VISIT,
+      entityId: visit._id.toString(),
+    });
+
     return res.status(200).json({
       message: "Field visit updated successfully",
       visit,
@@ -265,7 +282,7 @@ export const updateVisit = async (
 // Delete a field visit
 
 export const deleteVisit = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -280,6 +297,13 @@ export const deleteVisit = async (
     }
 
     await Visit.findByIdAndDelete(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.VISIT,
+      entityId: visit._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Field visit deleted successfully",

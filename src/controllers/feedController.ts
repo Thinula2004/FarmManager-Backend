@@ -3,6 +3,10 @@ import { Request, Response } from "express";
 import FeedType from "../models/FeedType";
 import FeedEntry from "../models/FeedEntry";
 import Batch from "../models/Batch";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { createActivity } from "../services/ActivityService";
+import { ActivityAction } from "../enums/ActivityAction";
+import { ActivityEntity } from "../enums/ActivityEntity";
 
 // Add a new Feed Type
 
@@ -194,7 +198,7 @@ export const getAllFeedTypes = async (
 // Add a new Feed Entry
 
 export const addFeedEntry = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -256,6 +260,13 @@ export const addFeedEntry = async (
 
     await feedEntry.populate("feedType", "name");
 
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.ADDED,
+      entity: ActivityEntity.FEED,
+      entityId: feedEntry._id.toString(),
+    });
+
     return res.status(201).json({
       message: "Feed entry created successfully",
       feedEntry: {
@@ -285,7 +296,7 @@ export const addFeedEntry = async (
 // Delete a Feed Entry
 
 export const deleteFeedEntry = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
@@ -300,6 +311,13 @@ export const deleteFeedEntry = async (
     }
 
     await FeedEntry.findByIdAndDelete(id);
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.FEED,
+      entityId: feedEntry._id.toString(),
+    });
 
     return res.status(200).json({
       message: "Feed entry deleted successfully",
