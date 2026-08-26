@@ -310,7 +310,7 @@ export const getBatchByID = async (
     // FCR = Total Feed / (Average Weight × Live Chicks)
     const fcr =
       avgWeight > 0 && liveChicks > 0
-        ? totalFeedWeight / (avgWeight * liveChicks)
+        ?  (totalFeedWeight - feedRemaining)  / (avgWeight * liveChicks)
         : 0;
 
     return res.status(200).json({
@@ -536,7 +536,7 @@ export const getBatchesByFarm = async (
     // FCR = Total Feed / (Average Weight × Live Chicks)
     const fcr =
       avgWeight > 0 && liveChicks > 0
-        ? totalFeedWeight /
+        ? (totalFeedWeight - feedRemaining) /
           (avgWeight * liveChicks)
         : 0;
 
