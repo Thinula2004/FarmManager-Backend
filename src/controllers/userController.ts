@@ -67,6 +67,7 @@ export const addUser = async (
       phone,
       password: hashedPassword,
       role: "officer",
+      isActive: true,
     });
 
     await OfficerFarm.insertMany(
@@ -83,6 +84,7 @@ export const addUser = async (
         name: user.name,
         phone: user.phone,
         role: user.role,
+        isActive: user.isActive,
       },
       farms: uniqueFarmIds,
     });
@@ -96,6 +98,9 @@ export const addUser = async (
     });
   }
 };
+
+
+// Update officer
 
 export const updateUser = async (
   req: AuthenticatedRequest,
@@ -189,6 +194,7 @@ export const updateUser = async (
         name: user.name,
         phone: user.phone,
         role: user.role,
+        isActive: user.isActive,
       },
       farms: uniqueFarmIds,
     });
@@ -204,7 +210,6 @@ export const updateUser = async (
 };
 
 
-
 // Delete officer
 
 export const deleteUser = async (
@@ -212,19 +217,15 @@ export const deleteUser = async (
   res: Response
 ) => {
   try {
-
     const { id } = req.params;
 
-
     const user = await User.findById(id);
-
 
     if (!user) {
       return res.status(404).json({
         message: "User not found",
       });
     }
-
 
     // Prevent deleting owners
     if (user.role === "owner") {
@@ -233,33 +234,25 @@ export const deleteUser = async (
       });
     }
 
-
     await OfficerFarm.deleteMany({
       officer: id,
     });
 
-
     await User.findByIdAndDelete(id);
-
 
     return res.status(200).json({
       message: "Officer deleted successfully",
     });
-
-
   } catch (err) {
-
     console.log(
       `Error Occured During Delete User : ${err}`
     );
-
 
     return res.status(500).json({
       message: "Server error",
     });
   }
 };
-
 
 
 // Get all officers
@@ -278,7 +271,9 @@ export const getOfficers = async (
       })
       .lean();
 
-    const officerIds = officers.map((officer) => officer._id);
+    const officerIds = officers.map(
+      (officer) => officer._id
+    );
 
     const officerFarms = await OfficerFarm.find({
       officer: { $in: officerIds },
@@ -300,6 +295,7 @@ export const getOfficers = async (
         name: officer.name,
         phone: officer.phone,
         password: officer.password,
+        isActive: officer.isActive,
         farms,
       };
     });
@@ -319,3 +315,118 @@ export const getOfficers = async (
   }
 };
 
+
+// Activate user
+
+export const activateUser = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (user.role === "owner") {
+      return res.status(403).json({
+        message: "Owner cannot be activated",
+      });
+    }
+
+    if (user.isActive) {
+      return res.status(400).json({
+        message: "User is already active",
+      });
+    }
+
+    user.isActive = true;
+
+    // Invalidate existing JWT
+    user.tokenVersion += 1;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "User activated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        isActive: user.isActive,
+      },
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Activate User : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+// Deactivate user
+
+export const deactivateUser = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (user.role === "owner") {
+      return res.status(403).json({
+        message: "Owner cannot be deactivated",
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(400).json({
+        message: "User is already inactive",
+      });
+    }
+
+    user.isActive = false;
+
+    // Invalidate existing JWT
+    user.tokenVersion += 1;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "User deactivated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        isActive: user.isActive,
+      },
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Deactivate User : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};

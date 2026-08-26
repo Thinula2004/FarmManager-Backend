@@ -1,7 +1,9 @@
 import express from "express";
 
 import {
+  activateUser,
   addUser,
+  deactivateUser,
   deleteUser,
   getOfficers,
   updateUser,
@@ -41,6 +43,20 @@ router.get(
   authenticate,
   authorize("owner"),
   getOfficers
+);
+
+router.post(
+  "/activate/:userId",
+  authenticate,
+  authorize("owner"),
+  activateUser
+);
+
+router.post(
+  "/deactivate/:userId",
+  authenticate,
+  authorize("owner"),
+  deactivateUser
 );
 
 export default router;

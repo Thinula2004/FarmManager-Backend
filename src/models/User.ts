@@ -7,6 +7,7 @@ export interface IUser extends mongoose.Document {
   password: string;
   role: UserRole;
   tokenVersion: number;
+  isActive: boolean;
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -36,6 +37,11 @@ const userSchema = new mongoose.Schema<IUser>(
     tokenVersion: {
       type: Number,
       default: 0,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
