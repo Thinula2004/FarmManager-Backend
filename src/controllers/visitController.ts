@@ -20,6 +20,7 @@ export const addVisit = async (
       remainingFeed,
       mortality,
       avgWeight,
+      FCR,
       note,
     } = req.body;
 
@@ -28,7 +29,8 @@ export const addVisit = async (
       !batch ||
       remainingFeed === undefined ||
       mortality === undefined ||
-      avgWeight === undefined
+      avgWeight === undefined ||
+      FCR === undefined
     ) {
       return res.status(400).json({
         message: "All required visit fields are required",
@@ -53,6 +55,11 @@ export const addVisit = async (
       });
     }
 
+    if (FCR < 0) {
+      return res.status(400).json({
+        message: "FCR cannot be negative",
+      });
+    }
 
     const officer = req.user?.id;
 
@@ -62,7 +69,6 @@ export const addVisit = async (
       });
     }
 
-
     const existingBatch = await Batch.findById(batch);
 
     if (!existingBatch) {
@@ -71,13 +77,11 @@ export const addVisit = async (
       });
     }
 
-
     const latestFeedEntry = await FeedEntry.findOne({
       batch,
     }).sort({
       createdAt: -1,
     });
-
 
     if (!latestFeedEntry) {
       return res.status(404).json({
@@ -85,18 +89,15 @@ export const addVisit = async (
       });
     }
 
-
     const latestVisit = await Visit.findOne({
       batch,
     }).sort({
       visitNumber: -1,
     });
 
-
     const visitNumber = latestVisit
       ? latestVisit.visitNumber + 1
       : 1;
-
 
     const visit = await Visit.create({
       visitNumber,
@@ -106,11 +107,10 @@ export const addVisit = async (
       remainingFeed,
       mortality,
       avgWeight,
-      FCR: 0,
+      FCR,
       officer,
       note: note || "",
     });
-
 
     await visit.populate([
       {
@@ -137,7 +137,6 @@ export const addVisit = async (
       entity: ActivityEntity.VISIT,
       entityId: visit._id.toString(),
     });
-
 
     return res.status(201).json({
       message: "Field visit created successfully",
@@ -171,6 +170,7 @@ export const updateVisit = async (
       remainingFeed,
       mortality,
       avgWeight,
+      FCR,
       note,
     } = req.body;
 
@@ -179,6 +179,12 @@ export const updateVisit = async (
     if (!visit) {
       return res.status(404).json({
         message: "Visit not found",
+      });
+    }
+
+    if (FCR !== undefined && FCR < 0) {
+      return res.status(400).json({
+        message: "FCR cannot be negative",
       });
     }
 
@@ -237,6 +243,10 @@ export const updateVisit = async (
 
     if (note !== undefined) {
         visit.note = note;
+    }
+
+    if (FCR !== undefined) {
+      visit.FCR = FCR;
     }
 
     await visit.save();
