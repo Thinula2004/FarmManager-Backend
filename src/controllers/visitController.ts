@@ -352,11 +352,17 @@ export const getVisitsByBatch = async (
     })
       .populate({
         path: "batch",
-        select: "name inDate initialCount breed subBreed status",
-        populate: {
-          path: "breed",
-          select: "name",
-        },
+        select: "name inDate initialCount breed subBreed status farm",
+        populate: [
+          {
+            path: "breed",
+            select: "name",
+          },
+          {
+            path: "farm",
+            select: "name city address customer tel",
+          },
+        ],
       })
       .populate({
         path: "feedEntry",
@@ -390,6 +396,7 @@ export const getVisitsByBatch = async (
 };
 
 // Get all visits done by an officer
+
 export const getVisitsByOfficer = async (
   req: Request,
   res: Response
@@ -408,11 +415,17 @@ export const getVisitsByOfficer = async (
     })
       .populate({
         path: "batch",
-        select: "name inDate initialCount breed subBreed status",
-        populate: {
-          path: "breed",
-          select: "name",
-        },
+        select: "name inDate initialCount breed subBreed status farm",
+        populate: [
+          {
+            path: "breed",
+            select: "name",
+          },
+          {
+            path: "farm",
+            select: "name city address customer tel",
+          },
+        ],
       })
       .populate({
         path: "feedEntry",
