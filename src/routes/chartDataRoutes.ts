@@ -2,7 +2,7 @@ import express from "express";
 
 import { authenticate } from "../services/Authenticator";
 import { authorize } from "../services/Authorize";
-import { getAvgWeightChartData } from "../controllers/chartDataController";
+import { getAvgWeightChartData, getMortalityChartData } from "../controllers/chartDataController";
 
 const router = express.Router();
 
@@ -11,6 +11,13 @@ router.get(
   authenticate,
   authorize("owner", "officer"),
   getAvgWeightChartData
+);
+
+router.get(
+  "/mortality/:batchID",
+  authenticate,
+  authorize("owner", "officer"),
+  getMortalityChartData
 );
 
 export default router;
