@@ -10,6 +10,7 @@ import visitRoutes from "./routes/visitRoutes";
 import userRoutes from "./routes/userRoutes";
 import supplyRoutes from "./routes/supplyRoutes";
 import chartDataRoutes from "./routes/chartDataRoutes";
+import activityRoutes from "./routes/activityRoutes";
 
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
@@ -44,5 +45,6 @@ app.use("/api/feed", feedRoutes);
 app.use("/api/visit", visitRoutes);
 app.use("/api/supply", supplyRoutes);
 app.use("/api/chart", chartDataRoutes);
+app.use("/api/activity", activityRoutes);
 
 export default app;
