@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Farm from "../models/Farm";
+import Batch from "../models/Batch";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -14,19 +14,18 @@ const migrate = async () => {
 
     console.log("Connected to MongoDB");
 
-    const result = await Farm.updateMany(
-      {
-        isOpen: { $exists: false },
-      },
+    const result = await Batch.updateMany(
+      {},
       {
         $set: {
-          isOpen: true,
+          totalWeight: null,
+          fcr: null,
         },
       }
     );
 
     console.log(
-      `Migration completed. Updated ${result.modifiedCount} farms.`
+      `Migration completed. Updated ${result.modifiedCount} batches.`
     );
 
     await mongoose.disconnect();

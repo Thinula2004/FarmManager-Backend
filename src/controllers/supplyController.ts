@@ -7,9 +7,7 @@ import { createActivity } from "../services/ActivityService";
 import { ActivityAction } from "../enums/ActivityAction";
 import { ActivityEntity } from "../enums/ActivityEntity";
 
-// ============================================================
 // Supply Type
-// ============================================================
 
 export const addSupplyType = async (
   req: Request,
@@ -249,16 +247,6 @@ export const addSupply = async (
 
     return res.status(201).json({
       message: "Supply created successfully",
-      supply: {
-        id: populatedSupply!._id,
-        name: populatedSupply!.name,
-        quantity: populatedSupply!.quantity,
-        unit: populatedSupply!.unit,
-        type: populatedSupply!.type,
-        batch: populatedSupply!.batch,
-        createdAt: populatedSupply!.createdAt,
-        updatedAt: populatedSupply!.updatedAt,
-      },
     });
   } catch (err) {
     console.log(

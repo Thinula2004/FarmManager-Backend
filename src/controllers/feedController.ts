@@ -269,18 +269,6 @@ export const addFeedEntry = async (
 
     return res.status(201).json({
       message: "Feed entry created successfully",
-      feedEntry: {
-        id: feedEntry._id,
-        feedType: {
-          id: (feedEntry.feedType as any)._id,
-          name: (feedEntry.feedType as any).name,
-        },
-        weight: feedEntry.weight,
-        cost: feedEntry.cost,
-        batch: feedEntry.batch,
-        createdAt: feedEntry.createdAt,
-        updatedAt: feedEntry.updatedAt,
-      },
     });
   } catch (err) {
     console.log(

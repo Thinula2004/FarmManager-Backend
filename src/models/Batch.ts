@@ -10,6 +10,8 @@ export interface IBatch extends mongoose.Document {
   subBreed: string;
   totalCost: number;
   status: BatchStatus;
+  fcr: number | null;
+  totalWeight: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +64,16 @@ const batchSchema = new mongoose.Schema<IBatch>(
       enum: ["ONGOING", "PARTIALLY_SOLD", "COMPLETED"],
       default: "ONGOING",
       required: true,
+    },
+
+    fcr: {
+      type: Number,
+      default: null,
+    },
+
+    totalWeight: {
+      type: Number,
+      default: null,
     },
   },
   { timestamps: true }

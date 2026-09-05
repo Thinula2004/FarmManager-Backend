@@ -89,14 +89,6 @@ export const addUser = async (
 
     return res.status(201).json({
       message: "Officer created successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        isActive: user.isActive,
-      },
-      farms: uniqueFarmIds,
     });
   } catch (err) {
     console.log(
@@ -206,14 +198,6 @@ export const updateUser = async (
 
     return res.status(200).json({
       message: "Officer updated successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        isActive: user.isActive,
-      },
-      farms: uniqueFarmIds,
     });
   } catch (err) {
     console.log(
@@ -383,14 +367,7 @@ export const activateUser = async (
     });
 
     return res.status(200).json({
-      message: "User activated successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        isActive: user.isActive,
-      },
+      message: "User activated successfully"
     });
   } catch (err) {
     console.log(
@@ -449,13 +426,6 @@ export const deactivateUser = async (
 
     return res.status(200).json({
       message: "User deactivated successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        isActive: user.isActive,
-      },
     });
   } catch (err) {
     console.log(

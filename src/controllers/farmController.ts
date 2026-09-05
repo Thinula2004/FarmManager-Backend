@@ -45,14 +45,6 @@ export const addFarm = async (
 
     return res.status(201).json({
       message: "Farm created successfully",
-      farm: {
-        id: farm._id,
-        name: farm.name,
-        city: farm.city,
-        address: farm.address,
-        customer: farm.customer,
-        tel: farm.tel,
-      },
     });
   } catch (err) {
     console.log(`Error Occured During Add Farm : ${err}`);
@@ -144,16 +136,6 @@ export const updateFarm = async (
 
     return res.status(200).json({
       message: "Farm updated successfully",
-      farm: {
-        id: farm._id,
-        name: farm.name,
-        city: farm.city,
-        address: farm.address,
-        customer: farm.customer,
-        tel: farm.tel,
-        createdAt: farm.createdAt,
-        updatedAt: farm.updatedAt,
-      },
     });
   } catch (err) {
     console.log(`Error Occured During Update Farm : ${err}`);
@@ -207,7 +189,6 @@ export const getDashboardStats = async (
   res: Response
 ) => {
   try {
-    // Get all open farms
     const openFarms = await Farm.find({
       isOpen: true,
     }).select("_id");
@@ -216,15 +197,12 @@ export const getDashboardStats = async (
       (farm) => farm._id
     );
 
-    // Total open farms
     const farmCount = openFarms.length;
 
-    // Total officers
     const officerCount = await User.countDocuments({
       role: "officer",
     });
 
-    // Get ongoing batches belonging to open farms
     const ongoingBatches = await Batch.find({
       farm: {
         $in: openFarmIds,
@@ -232,19 +210,15 @@ export const getDashboardStats = async (
       status: "ONGOING",
     }).select("_id initialCount");
 
-    // Total initial chicks in ongoing batches
     const totalInitialChicks = ongoingBatches.reduce(
       (total, batch) => total + batch.initialCount,
       0
     );
 
-    // IDs of ongoing batches
     const ongoingBatchIds = ongoingBatches.map(
       (batch) => batch._id
     );
 
-    // Get total mortality from visits belonging
-    // to ongoing batches of open farms
     const mortalityResult = await Visit.aggregate([
       {
         $match: {
@@ -268,7 +242,6 @@ export const getDashboardStats = async (
         ? mortalityResult[0].totalMortality
         : 0;
 
-    // Calculate live chicks
     const liveChicks = Math.max(
       totalInitialChicks - totalMortality,
       0
@@ -294,7 +267,6 @@ export const getDashboardStats = async (
   }
 };
 
-// Get Officer Statistics
 export const getOfficerStats = async (
   req: Request,
   res: Response
@@ -327,7 +299,6 @@ export const getOfficerStats = async (
       (assignment) => assignment.farm
     );
 
-    // Only open farms
     const openFarms = await Farm.find({
       _id: {
         $in: assignedFarmIds,
@@ -361,7 +332,6 @@ export const getOfficerStats = async (
       },
     });
 
-    // Only visits belonging to batches of open farms
     const openFarmBatchIds = await Batch.find({
       farm: {
         $in: farmIds,
@@ -780,7 +750,6 @@ export const openFarm = async (
 
     return res.status(200).json({
       message: "Farm opened successfully",
-      success: true,
     });
   } catch (err) {
     console.log(
@@ -830,7 +799,6 @@ export const closeFarm = async (
 
     return res.status(200).json({
       message: "Farm closed successfully",
-      success: true,
     });
   } catch (err) {
     console.log(

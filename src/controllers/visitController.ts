@@ -112,25 +112,6 @@ export const addVisit = async (
       note: note || "",
     });
 
-    await visit.populate([
-      {
-        path: "batch",
-        select: "name",
-      },
-      {
-        path: "feedEntry",
-        select: "weight cost",
-        populate: {
-          path: "feedType",
-          select: "name",
-        },
-      },
-      {
-        path: "officer",
-        select: "name phone role",
-      },
-    ]);
-
     await createActivity({
       userId: req.user!.id,
       action: ActivityAction.ADDED,
@@ -140,7 +121,6 @@ export const addVisit = async (
 
     return res.status(201).json({
       message: "Field visit created successfully",
-      visit,
     });
 
   } catch (err) {
@@ -251,21 +231,6 @@ export const updateVisit = async (
 
     await visit.save();
 
-    await visit.populate([
-      {
-        path: "batch",
-        select: "name",
-      },
-      {
-        path: "feedEntry",
-        select: "weight cost",
-      },
-      {
-        path: "officer",
-        select: "name phone role",
-      },
-    ]);
-
     await createActivity({
       userId: req.user!.id,
       action: ActivityAction.UPDATED,
@@ -275,7 +240,6 @@ export const updateVisit = async (
 
     return res.status(200).json({
       message: "Field visit updated successfully",
-      visit,
     });
   } catch (err) {
     console.log(
