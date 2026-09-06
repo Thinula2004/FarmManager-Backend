@@ -18,8 +18,7 @@ const migrate = async () => {
       {},
       {
         $set: {
-          totalWeight: null,
-          fcr: null,
+          finalFeedRemaining: null
         },
       }
     );

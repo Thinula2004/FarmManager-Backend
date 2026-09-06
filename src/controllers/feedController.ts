@@ -263,7 +263,7 @@ export const addFeedEntry = async (
     await createActivity({
       userId: req.user!.id,
       action: ActivityAction.ADDED,
-      entity: ActivityEntity.FEED,
+      entity: ActivityEntity.FEED_ENTRY,
       entityId: feedEntry._id.toString(),
     });
 
@@ -303,7 +303,7 @@ export const deleteFeedEntry = async (
     await createActivity({
       userId: req.user!.id,
       action: ActivityAction.DELETED,
-      entity: ActivityEntity.FEED,
+      entity: ActivityEntity.FEED_ENTRY,
       entityId: feedEntry._id.toString(),
     });
 

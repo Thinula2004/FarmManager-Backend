@@ -8,6 +8,7 @@ import { ActivityAction } from "../enums/ActivityAction";
 import { ActivityEntity } from "../enums/ActivityEntity";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 import { createActivity } from "../services/ActivityService";
+import Chillout from "../models/Chillout";
 
 // Add a new batch
 
@@ -149,7 +150,6 @@ export const updateBatchStatus = async (
 
     const validStatuses = [
       "ONGOING",
-      "PARTIALLY_SOLD",
       "COMPLETED",
     ];
 
@@ -162,7 +162,7 @@ export const updateBatchStatus = async (
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         message:
-          "Invalid status. Status must be ONGOING, PARTIALLY_SOLD, or COMPLETED",
+          "Invalid status. Status must be ONGOING, or COMPLETED",
       });
     }
 
@@ -276,7 +276,9 @@ export const getBatchByID = async (
 
     let feedRemaining = 0;
 
-    if (latestVisit) {
+    if (batch.finalFeedRemaining !== null) {
+      feedRemaining = batch.finalFeedRemaining;
+    } else if (latestVisit) {
       feedRemaining = latestVisit.remainingFeed;
 
       const feedAddedAfterVisit = feedEntries
@@ -298,8 +300,26 @@ export const getBatchByID = async (
     const totalMortality =
       mortalityResult[0]?.totalMortality ?? 0;
 
+    const chillouts = await Chillout.find({
+      batch: batchId,
+    });
+
+    const totalChilloutCount = chillouts.reduce(
+      (total, chillout) =>
+        total + (chillout.count ?? 0),
+      0
+    );
+
+    const totalChilloutWeight = chillouts.reduce(
+      (total, chillout) =>
+        total + (chillout.weight ?? 0),
+      0
+    );
+
     const liveChicks = Math.max(
-      batch.initialCount - totalMortality,
+      batch.initialCount -
+        totalMortality -
+        totalChilloutCount,
       0
     );
 
@@ -307,13 +327,15 @@ export const getBatchByID = async (
 
     const avgWeightKg = avgWeight / 1000;
 
-    // Use stored FCR if available, otherwise calculate it
     const fcr =
       batch.fcr !== null
         ? batch.fcr
-        : avgWeightKg > 0 && liveChicks > 0
+        : (
+            (liveChicks > 0 && avgWeightKg > 0) ||
+            totalChilloutWeight > 0
+          )
           ? (totalFeedWeight - feedRemaining) /
-            (avgWeightKg * liveChicks)
+            (avgWeightKg * liveChicks + totalChilloutWeight)
           : 0;
 
     return res.status(200).json({
@@ -332,11 +354,14 @@ export const getBatchByID = async (
 
         totalMortality,
 
+        
         avgWeight,
-
+        
         fcr,
-
+        
         totalWeight: batch.totalWeight,
+
+        totalChilloutWeight,
 
         lastVisit:
           latestVisit?.visitedDate ?? null,
@@ -453,6 +478,27 @@ export const getBatchesByFarm = async (
       },
     ]);
 
+    const chillouts = await Chillout.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: batchIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$batch",
+          totalCount: {
+            $sum: "$count",
+          },
+          totalWeight: {
+            $sum: "$weight",
+          },
+        },
+      },
+    ]);
+
     const mortalityMap = new Map(
       mortalityResults.map((item) => [
         item._id.toString(),
@@ -468,6 +514,16 @@ export const getBatchesByFarm = async (
     );
 
     const feedEntriesMap = new Map<string, any[]>();
+
+    const chilloutMap = new Map(
+      chillouts.map((item) => [
+        item._id.toString(),
+        {
+          totalCount: item.totalCount ?? 0,
+          totalWeight: item.totalWeight ?? 0,
+        },
+      ])
+    );
 
     feedEntries.forEach((entry) => {
       const batchId = entry.batch.toString();
@@ -498,38 +554,48 @@ export const getBatchesByFarm = async (
             0
           );
 
+          const chilloutData =
+            chilloutMap.get(batchId) ?? {
+              totalCount: 0,
+              totalWeight: 0,
+            };
+
+          const totalChilloutCount =
+            chilloutData.totalCount;
+
+          const totalChilloutWeight =
+            chilloutData.totalWeight;
+
         let feedRemaining = 0;
 
-        if (latestVisit) {
-          feedRemaining =
-            latestVisit.remainingFeed;
+        if (batch.finalFeedRemaining !== null) {
+          feedRemaining = batch.finalFeedRemaining;
+        } else if (latestVisit) {
+          feedRemaining = latestVisit.remainingFeed;
 
-          const feedAddedAfterVisit =
-            batchFeedEntries
-              .filter(
-                (entry) =>
-                  new Date(entry.createdAt).getTime() >
-                  new Date(
-                    latestVisit.visitedDate
-                  ).getTime()
-              )
-              .reduce(
-                (total, entry) =>
-                  total + (entry.weight ?? 0),
-                0
-              );
+          const feedAddedAfterVisit = batchFeedEntries
+            .filter(
+              (entry) =>
+                new Date(entry.createdAt).getTime() >
+                new Date(latestVisit.visitedDate).getTime()
+            )
+            .reduce(
+              (total, entry) => total + (entry.weight ?? 0),
+              0
+            );
 
           feedRemaining += feedAddedAfterVisit;
         } else {
-          feedRemaining =
-            totalFeedWeight;
+          feedRemaining = totalFeedWeight;
         }
 
         const totalMortality =
           mortalityMap.get(batchId) ?? 0;
 
         const liveChicks = Math.max(
-          batch.initialCount - totalMortality,
+          batch.initialCount -
+            totalMortality -
+            totalChilloutCount,
           0
         );
 
@@ -538,13 +604,15 @@ export const getBatchesByFarm = async (
 
         const avgWeightKg = avgWeight / 1000;
 
-        // Use stored FCR if available, otherwise calculate it
         const fcr =
           batch.fcr !== null
             ? batch.fcr
-            : avgWeightKg > 0 && liveChicks > 0
+            : (
+                (liveChicks > 0 && avgWeightKg > 0) ||
+                totalChilloutWeight > 0
+              )
               ? (totalFeedWeight - feedRemaining) /
-                (avgWeightKg * liveChicks)
+                (avgWeightKg * liveChicks + totalChilloutWeight)
               : 0;
 
         return {
@@ -565,6 +633,8 @@ export const getBatchesByFarm = async (
           fcr,
 
           totalWeight: batch.totalWeight,
+
+          totalChilloutWeight,
 
           lastVisit:
             latestVisit?.visitedDate ?? null,

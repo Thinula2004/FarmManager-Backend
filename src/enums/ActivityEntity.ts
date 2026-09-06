@@ -4,7 +4,8 @@ export enum ActivityEntity {
   BATCH = "BATCH",
   VISIT = "VISIT",
   OFFICER = "OFFICER",
-  FEED = "FEED",
+  FEED_ENTRY = "FEED_ENTRY",
   SUPPLY = "SUPPLY",
   USER = "USER",
+  CHILLOUT = "CHILLOUT"
 }

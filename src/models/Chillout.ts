@@ -5,6 +5,7 @@ export interface IChillout extends mongoose.Document {
   batch: mongoose.Types.ObjectId;
   count: number;
   price: number;
+  weight: number;
   customer: string;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +31,12 @@ const chilloutSchema = new mongoose.Schema<IChillout>(
     },
 
     price: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    
+    weight: {
       type: Number,
       default: 0,
       min: 0,

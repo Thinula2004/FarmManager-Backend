@@ -8,6 +8,7 @@ import { createActivity } from "../services/ActivityService";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 import { ActivityAction } from "../enums/ActivityAction";
 import { ActivityEntity } from "../enums/ActivityEntity";
+import Chillout from "../models/Chillout";
 
 export const addFarm = async (
   req: AuthenticatedRequest,
@@ -219,6 +220,27 @@ export const getDashboardStats = async (
       (batch) => batch._id
     );
 
+    const chilloutResult = await Chillout.aggregate([
+      {
+        $match: {
+          batch: {
+            $in: ongoingBatchIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalChilloutCount: {
+            $sum: "$count",
+          },
+        },
+      },
+    ]);
+
+    const totalChilloutCount =
+      chilloutResult[0]?.totalChilloutCount ?? 0;
+
     const mortalityResult = await Visit.aggregate([
       {
         $match: {
@@ -243,7 +265,9 @@ export const getDashboardStats = async (
         : 0;
 
     const liveChicks = Math.max(
-      totalInitialChicks - totalMortality,
+      totalInitialChicks -
+        totalMortality -
+        totalChilloutCount,
       0
     );
 
@@ -328,7 +352,7 @@ export const getOfficerStats = async (
         $in: farmIds,
       },
       status: {
-        $in: ["ONGOING", "PARTIALLY_SOLD"],
+        $in: ["ONGOING"],
       },
     });
 
@@ -370,10 +394,10 @@ export const getFarmsDetailed = async (
 ) => {
   try {
     const farms = await Farm.find({
-  isOpen: true,
-}).sort({
-  createdAt: -1,
-});
+      isOpen: true,
+    }).sort({
+      createdAt: -1,
+    });
 
     const detailedFarms = await Promise.all(
       farms.map(async (farm) => {
@@ -381,44 +405,51 @@ export const getFarmsDetailed = async (
           farm: farm._id,
         }).select("_id initialCount status");
 
-        const hasOngoingBatch = batches.some(
+        const ongoingBatches = batches.filter(
           (batch) => batch.status === "ONGOING"
         );
 
-        const hasPartiallySoldBatch = batches.some(
-          (batch) => batch.status === "PARTIALLY_SOLD"
+        const completedBatches = batches.filter(
+          (batch) => batch.status === "COMPLETED"
         );
 
-        let activeStatus: "ACTIVE" | "PARTIALLY_ACTIVE" | "INACTIVE";
+        const hasOngoingBatch =
+          ongoingBatches.length > 0;
 
-        if (hasOngoingBatch) {
+        const hasCompletedBatch =
+          completedBatches.length > 0;
+
+        let activeStatus:
+          | "ACTIVE"
+          | "PARTIALLY_ACTIVE"
+          | "INACTIVE";
+
+        if (hasOngoingBatch && !hasCompletedBatch) {
           activeStatus = "ACTIVE";
-        } else if (hasPartiallySoldBatch) {
+        } else if (
+          hasOngoingBatch &&
+          hasCompletedBatch
+        ) {
           activeStatus = "PARTIALLY_ACTIVE";
         } else {
           activeStatus = "INACTIVE";
         }
 
-        const activeBatchCount = batches.filter(
-          (batch) =>
-            batch.status === "ONGOING" ||
-            batch.status === "PARTIALLY_SOLD"
-        ).length;
+        const activeBatchCount =
+          ongoingBatches.length;
 
-        const totalBatchCount = batches.length;
+        const totalBatchCount =
+          batches.length;
 
-        const ongoingBatches = batches.filter(
-          (batch) => batch.status === "ONGOING"
-        );
+        const ongoingBatchIds =
+          ongoingBatches.map(
+            (batch) => batch._id
+          );
 
-        const ongoingBatchIds = ongoingBatches.map(
-          (batch) => batch._id
-        );
-
-        let totalMortality = 0;
+        let totalChilloutCount = 0;
 
         if (ongoingBatchIds.length > 0) {
-          const mortalityResult = await Visit.aggregate([
+          const chilloutResult = await Chillout.aggregate([
             {
               $match: {
                 batch: {
@@ -429,12 +460,38 @@ export const getFarmsDetailed = async (
             {
               $group: {
                 _id: null,
-                totalMortality: {
-                  $sum: "$mortality",
+                totalChilloutCount: {
+                  $sum: "$count",
                 },
               },
             },
           ]);
+
+          totalChilloutCount =
+            chilloutResult[0]?.totalChilloutCount ?? 0;
+        }
+
+        let totalMortality = 0;
+
+        if (ongoingBatchIds.length > 0) {
+          const mortalityResult =
+            await Visit.aggregate([
+              {
+                $match: {
+                  batch: {
+                    $in: ongoingBatchIds,
+                  },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalMortality: {
+                    $sum: "$mortality",
+                  },
+                },
+              },
+            ]);
 
           totalMortality =
             mortalityResult.length > 0
@@ -442,34 +499,45 @@ export const getFarmsDetailed = async (
               : 0;
         }
 
-        const totalInitialChicks = ongoingBatches.reduce(
-          (total, batch) => total + batch.initialCount,
-          0
-        );
+        const totalInitialChicks =
+          ongoingBatches.reduce(
+            (total, batch) =>
+              total + batch.initialCount,
+            0
+          );
 
         const liveChicks = Math.max(
           0,
-          totalInitialChicks - totalMortality
+          totalInitialChicks -
+            totalMortality -
+            totalChilloutCount
         );
 
         const lastVisit =
           batches.length > 0
             ? await Visit.findOne({
                 batch: {
-                  $in: batches.map((batch) => batch._id),
+                  $in: batches.map(
+                    (batch) => batch._id
+                  ),
                 },
               })
-                .sort({ visitedDate: -1 })
+                .sort({
+                  visitedDate: -1,
+                })
                 .select("visitedDate")
             : null;
 
-        const officerAssignments = await OfficerFarm.find({
-          farm: farm._id,
-        }).select("officer");
+        const officerAssignments =
+          await OfficerFarm.find({
+            farm: farm._id,
+          }).select("officer");
 
-        const officerIds = officerAssignments.map(
-          (assignment) => assignment.officer
-        );
+        const officerIds =
+          officerAssignments.map(
+            (assignment) =>
+              assignment.officer
+          );
 
         const officers = await User.find({
           _id: {
@@ -485,20 +553,27 @@ export const getFarmsDetailed = async (
           city: farm.city,
           address: farm.address,
           customer: farm.customer,
+
           activeStatus,
           activeBatchCount,
           totalBatchCount,
+
           liveChicks,
           totalMortality,
+
           lastVisit: lastVisit
             ? lastVisit.visitedDate
             : null,
-          officers: officers.map((officer) => ({
-            id: officer._id,
-            name: officer.name,
-            phone: officer.phone,
-            farms: [],
-          })),
+
+          officers: officers.map(
+            (officer) => ({
+              id: officer._id,
+              name: officer.name,
+              phone: officer.phone,
+              farms: [],
+            })
+          ),
+
           createdAt: farm.createdAt,
           updatedAt: farm.updatedAt,
         };
@@ -506,7 +581,8 @@ export const getFarmsDetailed = async (
     );
 
     return res.status(200).json({
-      message: "Farm statistics retrieved successfully",
+      message:
+        "Farm statistics retrieved successfully",
       farms: detailedFarms,
     });
   } catch (err) {
@@ -529,15 +605,20 @@ export const getFarmsAssigned = async (
   try {
     const { officerId } = req.params;
 
-    if (!officerId || typeof officerId !== "string") {
+    if (
+      !officerId ||
+      typeof officerId !== "string"
+    ) {
       return res.status(400).json({
-        message: "officerId query parameter is required",
+        message:
+          "officerId query parameter is required",
       });
     }
 
-    const assignments = await OfficerFarm.find({
-      officer: officerId,
-    }).select("farm");
+    const assignments =
+      await OfficerFarm.find({
+        officer: officerId,
+      }).select("farm");
 
     const farmIds = assignments.map(
       (assignment) => assignment.farm
@@ -545,19 +626,20 @@ export const getFarmsAssigned = async (
 
     if (farmIds.length === 0) {
       return res.status(200).json({
-        message: "Assigned farms retrieved successfully",
+        message:
+          "Assigned farms retrieved successfully",
         farms: [],
       });
     }
 
     const farms = await Farm.find({
-  _id: {
-    $in: farmIds,
-  },
-  isOpen: true,
-}).sort({
-  createdAt: -1,
-});
+      _id: {
+        $in: farmIds,
+      },
+      isOpen: true,
+    }).sort({
+      createdAt: -1,
+    });
 
     const detailedFarms = await Promise.all(
       farms.map(async (farm) => {
@@ -565,47 +647,57 @@ export const getFarmsAssigned = async (
           farm: farm._id,
         }).select("_id initialCount status");
 
-        const hasOngoingBatch = batches.some(
-          (batch) => batch.status === "ONGOING"
+        const ongoingBatches = batches.filter(
+          (batch) =>
+            batch.status === "ONGOING"
         );
 
-        const hasPartiallySoldBatch = batches.some(
-          (batch) => batch.status === "PARTIALLY_SOLD"
+        const completedBatches = batches.filter(
+          (batch) =>
+            batch.status === "COMPLETED"
         );
+
+        const hasOngoingBatch =
+          ongoingBatches.length > 0;
+
+        const hasCompletedBatch =
+          completedBatches.length > 0;
 
         let activeStatus:
           | "ACTIVE"
           | "PARTIALLY_ACTIVE"
           | "INACTIVE";
 
-        if (hasOngoingBatch) {
+        if (
+          hasOngoingBatch &&
+          !hasCompletedBatch
+        ) {
           activeStatus = "ACTIVE";
-        } else if (hasPartiallySoldBatch) {
-          activeStatus = "PARTIALLY_ACTIVE";
+        } else if (
+          hasOngoingBatch &&
+          hasCompletedBatch
+        ) {
+          activeStatus =
+            "PARTIALLY_ACTIVE";
         } else {
           activeStatus = "INACTIVE";
         }
 
-        const activeBatchCount = batches.filter(
-          (batch) =>
-            batch.status === "ONGOING" ||
-            batch.status === "PARTIALLY_SOLD"
-        ).length;
+        const activeBatchCount =
+          ongoingBatches.length;
 
-        const totalBatchCount = batches.length;
+        const totalBatchCount =
+          batches.length;
 
-        const ongoingBatches = batches.filter(
-          (batch) => batch.status === "ONGOING"
-        );
+        const ongoingBatchIds =
+          ongoingBatches.map(
+            (batch) => batch._id
+          );
 
-        const ongoingBatchIds = ongoingBatches.map(
-          (batch) => batch._id
-        );
-
-        let totalMortality = 0;
+        let totalChilloutCount = 0;
 
         if (ongoingBatchIds.length > 0) {
-          const mortalityResult = await Visit.aggregate([
+          const chilloutResult = await Chillout.aggregate([
             {
               $match: {
                 batch: {
@@ -616,34 +708,68 @@ export const getFarmsAssigned = async (
             {
               $group: {
                 _id: null,
-                totalMortality: {
-                  $sum: "$mortality",
+                totalChilloutCount: {
+                  $sum: "$count",
                 },
               },
             },
           ]);
 
+          totalChilloutCount =
+            chilloutResult[0]?.totalChilloutCount ?? 0;
+        }
+
+        let totalMortality = 0;
+
+        if (ongoingBatchIds.length > 0) {
+          const mortalityResult =
+            await Visit.aggregate([
+              {
+                $match: {
+                  batch: {
+                    $in: ongoingBatchIds,
+                  },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalMortality: {
+                    $sum: "$mortality",
+                  },
+                },
+              },
+            ]);
+
           totalMortality =
             mortalityResult.length > 0
-              ? mortalityResult[0].totalMortality
+              ? mortalityResult[0]
+                  .totalMortality
               : 0;
         }
 
-        const totalInitialChicks = ongoingBatches.reduce(
-          (total, batch) => total + batch.initialCount,
-          0
-        );
+        const totalInitialChicks =
+          ongoingBatches.reduce(
+            (total, batch) =>
+              total + batch.initialCount,
+            0
+          );
 
         const liveChicks = Math.max(
           0,
-          totalInitialChicks - totalMortality
+          totalInitialChicks -
+            totalMortality -
+            totalChilloutCount
         );
+
 
         const lastVisit =
           batches.length > 0
             ? await Visit.findOne({
                 batch: {
-                  $in: batches.map((batch) => batch._id),
+                  $in: batches.map(
+                    (batch) => batch._id
+                  ),
                 },
               })
                 .sort({
@@ -652,13 +778,17 @@ export const getFarmsAssigned = async (
                 .select("visitedDate")
             : null;
 
-        const officerAssignments = await OfficerFarm.find({
-          farm: farm._id,
-        }).select("officer");
 
-        const officerIds = officerAssignments.map(
-          (assignment) => assignment.officer
-        );
+        const officerAssignments =
+          await OfficerFarm.find({
+            farm: farm._id,
+          }).select("officer");
+
+        const officerIds =
+          officerAssignments.map(
+            (assignment) =>
+              assignment.officer
+          );
 
         const officers = await User.find({
           _id: {
@@ -686,12 +816,14 @@ export const getFarmsAssigned = async (
             ? lastVisit.visitedDate
             : null,
 
-          officers: officers.map((officer) => ({
-            id: officer._id,
-            name: officer.name,
-            phone: officer.phone,
-            farms: [],
-          })),
+          officers: officers.map(
+            (officer) => ({
+              id: officer._id,
+              name: officer.name,
+              phone: officer.phone,
+              farms: [],
+            })
+          ),
 
           createdAt: farm.createdAt,
           updatedAt: farm.updatedAt,
@@ -700,7 +832,8 @@ export const getFarmsAssigned = async (
     );
 
     return res.status(200).json({
-      message: "Assigned farms retrieved successfully",
+      message:
+        "Assigned farms retrieved successfully",
       farms: detailedFarms,
     });
   } catch (err) {
