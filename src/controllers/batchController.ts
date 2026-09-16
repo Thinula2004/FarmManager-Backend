@@ -539,21 +539,22 @@ export const getBatchesByFarm = async (
     return res.status(200).json({
       message: "Batches retrieved successfully",
 
-      batches: batches.map((batch) => {
-        const batchId = batch._id.toString();
+      batches: batches
+        .map((batch) => {
+          const batchId = batch._id.toString();
 
-        const latestVisit =
-          latestVisitMap.get(batchId);
+          const latestVisit =
+            latestVisitMap.get(batchId);
 
-        const batchFeedEntries =
-          feedEntriesMap.get(batchId) ?? [];
+          const batchFeedEntries =
+            feedEntriesMap.get(batchId) ?? [];
 
-        const totalFeedWeight =
-          batchFeedEntries.reduce(
-            (total, entry) =>
-              total + (entry.weight ?? 0),
-            0
-          );
+          const totalFeedWeight =
+            batchFeedEntries.reduce(
+              (total, entry) =>
+                total + (entry.weight ?? 0),
+              0
+            );
 
           const chilloutData =
             chilloutMap.get(batchId) ?? {
@@ -567,87 +568,116 @@ export const getBatchesByFarm = async (
           const totalChilloutWeight =
             chilloutData.totalWeight;
 
-        let feedRemaining = 0;
+          let feedRemaining = 0;
 
-        if (batch.finalFeedRemaining !== null) {
-          feedRemaining = batch.finalFeedRemaining;
-        } else if (latestVisit) {
-          feedRemaining = latestVisit.remainingFeed;
+          if (batch.finalFeedRemaining !== null) {
+            feedRemaining = batch.finalFeedRemaining;
+          } else if (latestVisit) {
+            feedRemaining = latestVisit.remainingFeed;
 
-          const feedAddedAfterVisit = batchFeedEntries
-            .filter(
-              (entry) =>
-                new Date(entry.createdAt).getTime() >
-                new Date(latestVisit.visitedDate).getTime()
-            )
-            .reduce(
-              (total, entry) => total + (entry.weight ?? 0),
-              0
-            );
+            const feedAddedAfterVisit =
+              batchFeedEntries
+                .filter(
+                  (entry) =>
+                    new Date(entry.createdAt).getTime() >
+                    new Date(
+                      latestVisit.visitedDate
+                    ).getTime()
+                )
+                .reduce(
+                  (total, entry) =>
+                    total + (entry.weight ?? 0),
+                  0
+                );
 
-          feedRemaining += feedAddedAfterVisit;
-        } else {
-          feedRemaining = totalFeedWeight;
-        }
+            feedRemaining += feedAddedAfterVisit;
+          } else {
+            feedRemaining = totalFeedWeight;
+          }
 
-        const totalMortality =
-          mortalityMap.get(batchId) ?? 0;
+          const totalMortality =
+            mortalityMap.get(batchId) ?? 0;
 
-        const liveChicks = Math.max(
-          batch.initialCount -
-            totalMortality -
-            totalChilloutCount,
-          0
-        );
+          const liveChicks = Math.max(
+            batch.initialCount -
+              totalMortality -
+              totalChilloutCount,
+            0
+          );
 
-        const avgWeight =
-          latestVisit?.avgWeight ?? 0;
+          const avgWeight =
+            latestVisit?.avgWeight ?? 0;
 
-        const avgWeightKg = avgWeight / 1000;
+          const avgWeightKg =
+            avgWeight / 1000;
 
-        const fcr =
-          batch.fcr !== null
-            ? batch.fcr
-            : (
-                (liveChicks > 0 && avgWeightKg > 0) ||
-                totalChilloutWeight > 0
-              )
-              ? (totalFeedWeight - feedRemaining) /
-                (avgWeightKg * liveChicks + totalChilloutWeight)
-              : 0;
+          const fcr =
+            batch.fcr !== null
+              ? batch.fcr
+              : (
+                  (liveChicks > 0 &&
+                    avgWeightKg > 0) ||
+                  totalChilloutWeight > 0
+                )
+                ? (totalFeedWeight - feedRemaining) /
+                  (
+                    avgWeightKg * liveChicks +
+                    totalChilloutWeight
+                  )
+                : 0;
 
-        return {
-          id: batch._id,
-          name: batch.name,
-          farm: batch.farm,
-          inDate: batch.inDate,
-          initialCount: batch.initialCount,
-          breed: batch.breed,
-          subBreed: batch.subBreed,
-          totalCost: batch.totalCost,
-          status: batch.status,
+          return {
+            id: batch._id,
+            name: batch.name,
+            farm: batch.farm,
+            inDate: batch.inDate,
+            initialCount: batch.initialCount,
+            breed: batch.breed,
+            subBreed: batch.subBreed,
+            totalCost: batch.totalCost,
+            status: batch.status,
 
-          totalMortality,
+            totalMortality,
 
-          liveChicks,
+            liveChicks,
 
-          avgWeight,
+            avgWeight,
 
-          fcr,
+            fcr,
 
-          totalWeight: batch.totalWeight,
+            totalWeight: batch.totalWeight,
 
-          totalChilloutWeight,
+            totalChilloutWeight,
 
-          lastVisit:
-            latestVisit?.visitedDate ?? null,
+            lastVisit:
+              latestVisit?.visitedDate ?? null,
 
-          feedRemaining,
+            feedRemaining,
 
-          createdAt: batch.createdAt,
-          updatedAt: batch.updatedAt,
-        };
-      }),
+            createdAt: batch.createdAt,
+            updatedAt: batch.updatedAt,
+          };
+        })
+        .sort((a, b) => {
+          if (
+            a.status === "ONGOING" &&
+            b.status !== "ONGOING"
+          ) {
+            return -1;
+          }
+
+          if (
+            a.status !== "ONGOING" &&
+            b.status === "ONGOING"
+          ) {
+            return 1;
+          }
+
+          return (
+            new Date(b.inDate).getTime() -
+            new Date(a.inDate).getTime()
+          );
+        }),
     });
   } catch (err) {
     console.log(

@@ -277,11 +277,13 @@ export const getChilloutsByBatch = async (
 
     const chillouts = await Chillout.find({
       batch: batchId,
-    }).sort({ date: 1 });
+    }).sort({
+      isFinal: -1,
+      date: -1,
+    });
 
     return res.status(200).json({
-       message:
-        "Chillouts retrieved successfully",
+      message: "Chillouts retrieved successfully",
       chillouts,
     });
   } catch (err) {
