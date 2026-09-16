@@ -60,6 +60,7 @@ export const addChillout = async (
       count,
       weight,
       customer,
+      isFinal: false,
     });
 
     await createActivity({
@@ -194,6 +195,7 @@ export const addLastChillout = async (
       count,
       weight,
       customer,
+      isFinal: true,
     });
 
     const feedEntries = await FeedEntry.find({

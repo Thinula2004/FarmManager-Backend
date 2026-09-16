@@ -7,6 +7,7 @@ export interface IChillout extends mongoose.Document {
   price: number;
   weight: number;
   customer: string;
+  isFinal: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +47,11 @@ const chilloutSchema = new mongoose.Schema<IChillout>(
       type: String,
       required: true,
       trim: true,
+    },
+    
+    isFinal: {
+      type: Boolean,
+      required: true,
     },
   },
   {
