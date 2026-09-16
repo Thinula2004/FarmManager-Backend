@@ -278,6 +278,8 @@ export const getChilloutsByBatch = async (
     }).sort({ date: 1 });
 
     return res.status(200).json({
+       message:
+        "Chillouts retrieved successfully",
       chillouts,
     });
   } catch (err) {
