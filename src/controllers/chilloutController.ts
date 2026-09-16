@@ -251,3 +251,42 @@ export const addLastChillout = async (
     });
   }
 };
+
+export const getChilloutsByBatch = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { batchId } = req.params;
+
+    if (!batchId) {
+      return res.status(400).json({
+        message: "Batch ID is required",
+      });
+    }
+
+    const batch = await Batch.findById(batchId);
+
+    if (!batch) {
+      return res.status(404).json({
+        message: "Batch not found",
+      });
+    }
+
+    const chillouts = await Chillout.find({
+      batch: batchId,
+    }).sort({ date: 1 });
+
+    return res.status(200).json({
+      chillouts,
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Get Chillouts By Batch : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};

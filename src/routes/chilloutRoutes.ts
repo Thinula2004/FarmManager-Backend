@@ -2,7 +2,7 @@ import express from "express";
 
 import { authenticate } from "../services/Authenticator";
 import { authorize } from "../services/Authorize";
-import { addChillout, addLastChillout } from "../controllers/chilloutController";
+import { addChillout, addLastChillout, getChilloutsByBatch } from "../controllers/chilloutController";
 
 const router = express.Router();
 
@@ -18,6 +18,13 @@ router.post(
   authenticate,
   authorize("owner"),
   addLastChillout
+);
+
+router.get(
+  "/:batchId",
+  authenticate,
+  authorize("owner"),
+  getChilloutsByBatch
 );
 
 export default router;

@@ -354,11 +354,12 @@ export const getBatchByID = async (
 
         totalMortality,
 
-        
+        liveChicks,
+
         avgWeight,
-        
+
         fcr,
-        
+
         totalWeight: batch.totalWeight,
 
         totalChilloutWeight,
@@ -627,6 +628,8 @@ export const getBatchesByFarm = async (
           status: batch.status,
 
           totalMortality,
+
+          liveChicks,
 
           avgWeight,
 
