@@ -296,3 +296,68 @@ export const getChilloutsByBatch = async (
     });
   }
 };
+
+export const deleteChillout = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { chilloutId } = req.params;
+
+    if (!chilloutId) {
+      return res.status(400).json({
+        message: "Chillout ID is required",
+      });
+    }
+
+    const chillout = await Chillout.findById(chilloutId);
+
+    if (!chillout) {
+      return res.status(404).json({
+        message: "Chillout not found",
+      });
+    }
+
+    if (chillout.isFinal) {
+      const batch = await Batch.findById(
+        chillout.batch
+      );
+
+      if (!batch) {
+        return res.status(404).json({
+          message: "Batch not found",
+        });
+      }
+
+      await Chillout.findByIdAndDelete(chilloutId);
+
+      batch.totalWeight = null;
+      batch.fcr = null;
+      batch.finalFeedRemaining = null;
+      batch.status = "ONGOING";
+
+      await batch.save();
+    } else {
+      await Chillout.findByIdAndDelete(chilloutId);
+    }
+
+    await createActivity({
+      userId: req.user!.id,
+      action: ActivityAction.DELETED,
+      entity: ActivityEntity.CHILLOUT,
+      entityId: chilloutId.toString(),
+    });
+
+    return res.status(200).json({
+      message: "Chillout deleted successfully",
+    });
+  } catch (err) {
+    console.log(
+      `Error Occured During Delete Chillout : ${err}`
+    );
+
+    return res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
